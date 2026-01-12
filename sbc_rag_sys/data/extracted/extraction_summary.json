@@ -1,0 +1,8 @@
+[
+  {
+    "filename": "sbc1101Final.pdf",
+    "text": "",
+    "success": false,
+    "error": "2 validation errors for Unmarshaller\nbody.0.user.content.str\n  Input should be a valid string [type=string_type, input_value=[{'type': 'text', 'text':...e': 'application/pdf'}}], input_type=list]\n    For further information visit https://errors.pydantic.dev/2.12/v/string_type\nbody.0.user.content.list[tagged-union[ImageURLChunk,TextChunk,ReferenceChunk]].1\n  Input tag 'document' found using <lambda>() does not match any of the expected tags: 'image_url', 'text', 'reference' [type=union_tag_invalid, input_value={'type': 'document', 'doc...pe': 'application/pdf'}}, input_type=dict]\n    For further information visit https://errors.pydantic.dev/2.12/v/union_tag_invalid"
+  }
+]
