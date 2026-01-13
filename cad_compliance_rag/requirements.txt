@@ -1,0 +1,6 @@
+# CAD Compliance RAG (runtime)
+# Standard library only.
+
+# docs/legacy_build only
+python-dotenv>=1.0.0
+mistralai>=1.0.0
