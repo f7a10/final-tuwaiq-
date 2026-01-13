@@ -1,6 +1,7 @@
 <template>
   <div class="min-h-screen bg-gray-50 flex flex-col font-sans" dir="rtl">
     
+    <!-- Navigation Bar with User Authentication -->
     <nav class="bg-primary px-8 py-4 flex justify-between items-center text-white shadow-lg z-50">
       <div class="flex items-center gap-3">
         <span class="text-3xl bg-white/10 p-2 rounded-lg">🏛️</span>
@@ -9,9 +10,86 @@
           <p class="text-[10px] text-accent/90 font-medium tracking-wider">المدقق المعماري الذكي</p>
         </div>
       </div>
+      
       <div class="flex gap-6 items-center">
         <button class="text-base font-bold text-white border-b-2 border-accent pb-1">الرئيسية</button>
-        <button class="text-base text-gray-200 hover:text-white hover:border-b-2 hover:border-white/50 pb-1 transition" @click="$router.push('/history')">السجل</button>
+        <button 
+          class="text-base text-gray-200 hover:text-white hover:border-b-2 hover:border-white/50 pb-1 transition" 
+          @click="goToHistory"
+        >السجل</button>
+        
+        <!-- User Menu (Authenticated) -->
+        <div v-if="authStore.isAuthenticated" class="relative">
+          <button 
+            @click="showUserMenu = !showUserMenu"
+            class="flex items-center gap-2 bg-white/10 hover:bg-white/20 px-4 py-2 rounded-xl transition"
+          >
+            <div class="w-8 h-8 bg-accent rounded-full flex items-center justify-center text-primary font-bold">
+              {{ userInitials }}
+            </div>
+            <span class="text-sm font-medium hidden sm:inline">{{ authStore.currentUser?.full_name }}</span>
+            <i class="fas fa-chevron-down text-xs transition-transform" :class="{ 'rotate-180': showUserMenu }"></i>
+          </button>
+          
+          <!-- Dropdown Menu -->
+          <transition
+            enter-active-class="transition ease-out duration-200"
+            enter-from-class="opacity-0 translate-y-1"
+            enter-to-class="opacity-100 translate-y-0"
+            leave-active-class="transition ease-in duration-150"
+            leave-from-class="opacity-100 translate-y-0"
+            leave-to-class="opacity-0 translate-y-1"
+          >
+            <div 
+              v-if="showUserMenu"
+              class="absolute left-0 mt-2 w-56 bg-white rounded-xl shadow-xl border border-gray-100 py-2 z-50"
+            >
+              <div class="px-4 py-3 border-b border-gray-100">
+                <p class="text-sm font-bold text-gray-800">{{ authStore.currentUser?.full_name }}</p>
+                <p class="text-xs text-gray-500">{{ authStore.currentUser?.email }}</p>
+              </div>
+              <button 
+                @click="goToProfile"
+                class="w-full px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50 flex items-center gap-3 transition"
+              >
+                <i class="fas fa-user text-gray-400"></i>
+                الملف الشخصي
+              </button>
+              <button 
+                @click="goToHistory"
+                class="w-full px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50 flex items-center gap-3 transition"
+              >
+                <i class="fas fa-history text-gray-400"></i>
+                سجل المشاريع
+              </button>
+              <div class="border-t border-gray-100 mt-2 pt-2">
+                <button 
+                  @click="handleLogout"
+                  class="w-full px-4 py-2.5 text-sm text-red-600 hover:bg-red-50 flex items-center gap-3 transition"
+                >
+                  <i class="fas fa-sign-out-alt"></i>
+                  تسجيل الخروج
+                </button>
+              </div>
+            </div>
+          </transition>
+        </div>
+        
+        <!-- Login/Register (Not Authenticated) -->
+        <div v-else class="flex items-center gap-3">
+          <router-link 
+            to="/login"
+            class="text-sm font-medium text-white/90 hover:text-white transition"
+          >
+            تسجيل الدخول
+          </router-link>
+          <router-link 
+            to="/register"
+            class="px-4 py-2 bg-accent text-primary text-sm font-bold rounded-xl hover:bg-accent/90 transition shadow-md"
+          >
+            إنشاء حساب
+          </router-link>
+        </div>
       </div>
     </nav>
 
@@ -22,6 +100,13 @@
       <div class="absolute bottom-0 left-0 w-[600px] h-[600px] bg-accent/5 rounded-full blur-[120px] translate-y-1/3 -translate-x-1/3"></div>
 
       <div v-if="!isProcessing" class="w-full max-w-5xl z-10 animate-fade-in-up">
+        
+        <!-- Welcome Message for Authenticated Users -->
+        <div v-if="authStore.isAuthenticated" class="text-center mb-6">
+          <p class="text-lg text-gray-600">
+            مرحباً <span class="font-bold text-primary">{{ authStore.currentUser?.full_name }}</span>! 👋
+          </p>
+        </div>
         
         <div class="text-center mb-12">
           <span class="px-4 py-1.5 bg-accent/20 text-accent text-sm font-bold rounded-full mb-6 inline-block border border-accent/20">
@@ -120,15 +205,29 @@
 
             <button 
               @click="uploadAndAnalyze"
-              :disabled="!selectedFile"
+              :disabled="!selectedFile || !authStore.isAuthenticated"
               class="w-full py-5 rounded-2xl font-bold text-xl shadow-lg transition-all duration-300 flex items-center justify-center gap-3 mt-8"
-              :class="selectedFile 
+              :class="selectedFile && authStore.isAuthenticated
                 ? 'bg-primary text-white hover:bg-[#0c615b] hover:shadow-primary/30 hover:-translate-y-1' 
                 : 'bg-gray-200 text-gray-400 cursor-not-allowed'"
             >
-              <span>بدء التحليل</span>
-              <i class="fas fa-arrow-left"></i>
+              <template v-if="!authStore.isAuthenticated">
+                <i class="fas fa-lock"></i>
+                <span>سجّل دخولك أولاً</span>
+              </template>
+              <template v-else>
+                <span>بدء التحليل</span>
+                <i class="fas fa-arrow-left"></i>
+              </template>
             </button>
+            
+            <!-- Login prompt for unauthenticated users -->
+            <div v-if="!authStore.isAuthenticated" class="mt-4 text-center">
+              <p class="text-sm text-gray-500">
+                ليس لديك حساب؟ 
+                <router-link to="/register" class="text-primary font-bold hover:underline">أنشئ حساباً مجاناً</router-link>
+              </p>
+            </div>
           </div>
 
         </div>
@@ -157,12 +256,14 @@
 </template>
 
 <script setup>
-import { ref } from 'vue';
+import { ref, computed, onMounted, onUnmounted } from 'vue';
 import { useRouter } from 'vue-router';
 import { useAnalysisStore } from '../stores/analysis';
+import { useAuthStore } from '../stores/auth';
 
 const router = useRouter();
 const store = useAnalysisStore();
+const authStore = useAuthStore();
 
 const fileInput = ref(null);
 const selectedFile = ref(null);
@@ -170,11 +271,58 @@ const previewUrl = ref(null);
 const isDragging = ref(false);
 const isProcessing = ref(false);
 const processingStep = ref('جاري رفع الملف...');
+const showUserMenu = ref(false);
 
 const settings = ref({
   checkVentilation: true,
   checkDimensions: true
 });
+
+// Computed
+const userInitials = computed(() => {
+  const name = authStore.currentUser?.full_name || '';
+  const parts = name.split(' ');
+  if (parts.length >= 2) {
+    return parts[0][0] + parts[1][0];
+  }
+  return name.substring(0, 2);
+});
+
+// Close menu when clicking outside
+const closeMenuOnClickOutside = (e) => {
+  if (!e.target.closest('.relative')) {
+    showUserMenu.value = false;
+  }
+};
+
+onMounted(() => {
+  document.addEventListener('click', closeMenuOnClickOutside);
+});
+
+onUnmounted(() => {
+  document.removeEventListener('click', closeMenuOnClickOutside);
+});
+
+// Navigation
+const goToHistory = () => {
+  showUserMenu.value = false;
+  if (!authStore.isAuthenticated) {
+    router.push('/login');
+  } else {
+    router.push('/history');
+  }
+};
+
+const goToProfile = () => {
+  showUserMenu.value = false;
+  router.push('/profile');
+};
+
+const handleLogout = () => {
+  showUserMenu.value = false;
+  authStore.logout();
+  router.push('/');
+};
 
 const triggerFileInput = () => fileInput.value.click();
 
@@ -219,6 +367,12 @@ const loadDemoData = () => {
 
 const uploadAndAnalyze = async () => {
   if (!selectedFile.value) return;
+  
+  // Check authentication
+  if (!authStore.isAuthenticated) {
+    router.push('/login');
+    return;
+  }
 
   isProcessing.value = true;
   processingStep.value = "جاري التعرف على الجدران والأبواب (YOLO)...";
@@ -230,8 +384,16 @@ const uploadAndAnalyze = async () => {
   try {
     const response = await fetch('/api/upload', {
       method: 'POST',
+      headers: authStore.getAuthHeader(),
       body: formData
     });
+
+    if (response.status === 401) {
+      // Token expired
+      authStore.logout();
+      router.push('/login');
+      return;
+    }
 
     if (!response.ok) throw new Error('Upload failed');
 

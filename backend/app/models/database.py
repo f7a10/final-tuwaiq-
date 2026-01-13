@@ -7,8 +7,7 @@ from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker, relationship
 from datetime import datetime
 
-# Database Configuration
-DATABASE_URL = "sqlite:///./emad.db"
+from backend.app.config import DATABASE_URL
 
 engine = create_engine(DATABASE_URL, connect_args={"check_same_thread": False})
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
@@ -71,24 +70,6 @@ class Project(Base):
     
     # Relationship to user
     owner = relationship("User", back_populates="projects")
-
-
-# -------------------------------------------------
-# Legacy Analysis Record (Keep for compatibility)
-# -------------------------------------------------
-class AnalysisRecord(Base):
-    __tablename__ = "analysis_records"
-
-    id = Column(Integer, primary_key=True, index=True)
-    task_id = Column(String(100), unique=True, index=True)
-    user_id = Column(Integer, index=True, nullable=True)
-    image_path = Column(String(500))
-    result_path = Column(String(500), nullable=True)
-    status = Column(String(50), default="processing")
-    score = Column(Float, nullable=True)
-    rooms_count = Column(Integer, default=0)
-    created_at = Column(DateTime, default=datetime.utcnow)
-    completed_at = Column(DateTime, nullable=True)
 
 
 # -------------------------------------------------

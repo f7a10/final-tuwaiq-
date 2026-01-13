@@ -1,17 +1,17 @@
 import { createRouter, createWebHistory } from 'vue-router'
 
-// Views
-import HomeView from '../view/HomeView.vue'
-import DashboardView from '../view/DashboardView.vue'
-import HistoryView from '../view/HistoryView.vue'
-import ProfileView from '../view/ProfileView.vue'
+// Views (renamed from 'view' to 'views')
+import HomeView from '../views/HomeView.vue'
+import DashboardView from '../views/DashboardView.vue'
+import HistoryView from '../views/HistoryView.vue'
+import ProfileView from '../views/ProfileView.vue'
 
 // Auth Views
-import LoginView from '../view/auth/LoginView.vue'
-import RegisterView from '../view/auth/RegisterView.vue'
+import LoginView from '../views/auth/LoginView.vue'
+import RegisterView from '../views/auth/RegisterView.vue'
 
 // Admin Views
-import AdminDashboardView from '../view/admin/AdminDashboardView.vue'
+import AdminDashboardView from '../views/admin/AdminDashboardView.vue'
 
 const routes = [
     // Public Routes
@@ -35,25 +35,25 @@ const routes = [
         meta: { guest: true }
     },
 
-    // Protected Routes (TEMPORARILY OPEN for debugging)
+    // Protected Routes
     {
         path: '/dashboard/:id',
         name: 'dashboard',
         component: DashboardView,
-        props: true
-        // meta: { requiresAuth: true }  // DISABLED FOR DEBUGGING
+        props: true,
+        meta: { requiresAuth: true }
     },
     {
         path: '/history',
         name: 'history',
-        component: HistoryView
-        // meta: { requiresAuth: true }  // DISABLED FOR DEBUGGING
+        component: HistoryView,
+        meta: { requiresAuth: true }
     },
     {
         path: '/profile',
         name: 'profile',
-        component: ProfileView
-        // meta: { requiresAuth: true }  // DISABLED FOR DEBUGGING
+        component: ProfileView,
+        meta: { requiresAuth: true }
     },
 
     // Admin Routes
@@ -71,12 +71,8 @@ const router = createRouter({
     routes
 })
 
-// Navigation Guard (DISABLED FOR DEBUGGING)
+// Navigation Guard - Protect routes
 router.beforeEach((to, from, next) => {
-    // TEMPORARILY DISABLED - All routes are open access
-    next()
-
-    /* ORIGINAL AUTH LOGIC - Uncomment to re-enable
     const token = localStorage.getItem('auth_token')
     const user = JSON.parse(localStorage.getItem('user') || '{}')
 
@@ -98,7 +94,6 @@ router.beforeEach((to, from, next) => {
     }
 
     next()
-    */
 })
 
 export default router

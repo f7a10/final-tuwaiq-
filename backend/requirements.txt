@@ -1,0 +1,23 @@
+fastapi
+uvicorn
+python-multipart
+opencv-python
+numpy
+openai
+inference-sdk
+matplotlib
+pillow
+python-dotenv
+# RAG Dependencies (for sbc_rag_sys)
+sentence-transformers
+qdrant-client
+mistralai
+# Auth Dependencies
+sqlalchemy
+bcrypt
+passlib[bcrypt]
+python-jose[cryptography]
+pydantic[email]
+google-generativeai
+qdrant-client
+mistralai
