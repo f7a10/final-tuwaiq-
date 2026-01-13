@@ -8,6 +8,11 @@ from functools import lru_cache
 from pathlib import Path
 from typing import Any, Dict, List, Tuple
 
+# Use relative import for config
+import sys
+import os
+_pkg_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+sys.path.insert(0, _pkg_root)
 import config
 
 

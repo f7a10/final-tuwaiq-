@@ -113,6 +113,16 @@
                  استشر الذكاء الاصطناعي
                  <i class="fas fa-arrow-left text-[10px]"></i>
               </button>
+              
+              <!-- Proposed Fix Button -->
+              <button 
+                v-if="room.proposedFix" 
+                @click="toggleFix(room.id)"
+                class="mt-2 w-full py-2 bg-blue-50 text-blue-600 rounded-lg text-xs font-bold hover:bg-blue-100 transition flex items-center justify-center gap-2 border border-blue-200"
+              >
+                <i class="fas fa-magic"></i>
+                {{ showingFixId === room.id ? 'إخفاء التعديل المقترح' : 'عرض التعديل المقترح' }}
+              </button>
             </div>
           </div>
         </div>
@@ -191,6 +201,19 @@
               {{ getArabicRoomType(room.type) }}
             </span>
           </div>
+
+          <!-- Proposed Fix Overlay -->
+          <template v-for="room in analysisData.rooms" :key="'fix-' + room.id">
+            <div 
+              v-if="showingFixId === room.id && room.proposedFix"
+              class="absolute border-4 border-dashed border-blue-500 bg-blue-500/10 z-20 transition-all duration-300 pointer-events-none flex items-center justify-center animate-pulse"
+              :style="getBoxStyle(room.proposedFix.box)"
+            >
+               <span class="bg-blue-600 text-white text-xs font-bold px-2 py-1 rounded shadow-lg">
+                 ✨ {{ room.proposedFix.description }}
+               </span>
+            </div>
+          </template>
         </div>
 
         <!-- Zoom Controls -->
@@ -223,6 +246,7 @@ const chatContainer = ref(null);
 const newMessage = ref('');
 const isTyping = ref(false);
 const imageLoadError = ref(false);
+const showingFixId = ref(null);
 
 // Arabic Translations
 const roomTypeMap = {
@@ -357,6 +381,15 @@ const scrollToCard = (id) => {
     const el = document.getElementById(`card-${id}`);
     if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center' });
   });
+};
+
+const toggleFix = (id) => {
+    if (showingFixId.value === id) {
+        showingFixId.value = null;
+    } else {
+        showingFixId.value = id;
+        activeRoomId.value = id; // Also highlight the original room
+    }
 };
 
 // Chat Functions

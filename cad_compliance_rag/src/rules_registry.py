@@ -82,15 +82,30 @@ def build_rules() -> List[Rule]:
 
     rules.append(
         Rule(
-            id="SBC1101-BATH-WC-HAS-WINDOW",
-            title="Bathrooms/WC must have a window (MVP check)",
+            id="SBC1101-HABITABLE-HAS-WINDOW",
+            title="Habitable rooms must have natural light/ventilation (Window)",
             severity="violation",
+            applies_to=["Bedroom", "Living", "Kitchen"],
+            check="has_window",
+            evidence_query={
+                "doc": "SBC1101",
+                "section_hint": "التهوية والإضاءة",
+                "keywords": ["تهوية طبيعية", "نوافذ", "مساحة زجاجية", "غرف نوم", "معيشة"],
+            },
+        )
+    )
+
+    rules.append(
+        Rule(
+            id="SBC1101-BATH-WC-HAS-WINDOW",
+            title="Bathrooms/WC must have ventilation (Window/Fan)",
+            severity="warning", # Downgraded to warning as mechanical vent is allowed
             applies_to=["Bathroom", "WC"],
             check="has_window",
             evidence_query={
                 "doc": "SBC1101",
                 "section_hint": "دورات المياه",
-                "keywords": ["الحمامات", "دورات المياه", "نوافذ", "مساحة زجاجية"],
+                "keywords": ["الحمامات", "دورات المياه", "نوافذ", "مروحة شفط"],
             },
         )
     )

@@ -138,12 +138,16 @@ def evaluate_rooms(rooms: List[Dict[str, Any]]) -> Dict[str, Any]:
                     continue
 
                 if has_window is False:
+                    msg = "يجب توفر نافذة للتهوية والإضاءة الطبيعية"
+                    if rtype in ["Bathroom", "WC"]:
+                         msg = "يفضل توفر نافذة (أو مروحة شفط ميكانيكية)"
+                    
                     violations.append({
                         "rule_id": rule.id,
                         "severity": rule.severity,
                         "room_id": room_id,
                         "room_type": rtype,
-                        "message": "يجب توفر نافذة لدورة المياه/المرحاض",
+                        "message": msg,
                         "expected": "has_window = True",
                         "actual": "has_window = False",
                         "evidence_query": rule.evidence_query,

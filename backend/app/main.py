@@ -77,8 +77,8 @@ def process_floor_plan(task_id: str, file_path: str, settings: dict, base_url: s
     db = SessionLocal()
     
     try:
-        # Run the full analysis
-        result_data, annotated_image = architect.analyze(file_path)
+        # Run the full analysis (with task_id for CAD Compliance RAG)
+        result_data, annotated_image = architect.analyze(file_path, task_id=task_id)
         
         analyzed_url = None
         original_url = f"{base_url}/uploads/{os.path.basename(file_path)}"

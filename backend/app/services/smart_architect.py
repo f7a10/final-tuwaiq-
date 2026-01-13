@@ -1,6 +1,6 @@
 # ==========================================
 # SmartArchitect ML Analysis Service
-# Updated with user's working model code
+# Integrated with CAD Compliance RAG + Grok 3
 # ==========================================
 
 import cv2
@@ -12,37 +12,179 @@ from inference_sdk import InferenceHTTPClient
 
 from backend.app.config import ROBOFLOW_API_KEY, OPENROUTER_API_KEY, PROJECT_ROOT
 
-# Import Saudi Building Code compliance checker
+# Import CAD Compliance RAG
 import sys
 sys.path.insert(0, PROJECT_ROOT)
-from sbc_rag_sys.src.rag_query import query_sbc
+from cad_compliance_rag.src.analyze_plan import analyze_plan
 
 # Engineering settings
 PIXELS_PER_METER = 100.0  # Default scale
 WINDOW_PADDING = 25       # Pixels to expand search area for windows
+
+# Room type mapping: AI output -> cad_compliance_rag types
+ROOM_TYPE_MAP = {
+    "bedroom": "Bedroom",
+    "master bedroom": "Bedroom",
+    "bedroom #1": "Bedroom",
+    "bedroom #2": "Bedroom", 
+    "bedroom #3": "Bedroom",
+    "kids room": "Bedroom",
+    "guest room": "Bedroom",
+    "living room": "Living",
+    "living": "Living",
+    "family room": "Living",
+    "salon": "Living",
+    "majlis": "Living",
+    "مجلس": "Living",
+    "kitchen": "Kitchen",
+    "مطبخ": "Kitchen",
+    "bathroom": "Bathroom",
+    "bath": "Bathroom",
+    "master bath": "Bathroom",
+    "washroom": "Bathroom",
+    "wc": "WC",
+    "toilet": "WC",
+    "half bath": "WC",
+    "powder room": "WC",
+    "corridor": "Corridor",
+    "hallway": "Corridor",
+    "hall": "Corridor",
+    "dining room": "Living",  # Map to Living for compliance
+    "dining": "Living",
+    "dinning area": "Living",
+    "open plan kitchen/living": "Living",  # Treat as Living for min area
+    "closet": "ServiceRoom",
+    "storage": "ServiceRoom",
+    "laundry": "ServiceRoom",
+    "utility": "ServiceRoom",
+    "service room": "ServiceRoom",
+    "service room": "ServiceRoom",
+    "unknown": "Unknown",
+    "great room": "Living",
+    "lounge": "Living",
+    "sitting room": "Living",
+    "drawing room": "Living",
+    "reception": "Living",
+    "entrance": "Corridor",
+    "foyer": "Corridor",
+    "lobby": "Corridor",
+    "pantry": "Kitchen",
+    "dirty kitchen": "Kitchen",
+    "kitchenette": "Kitchen",
+    "cook": "Kitchen",
+}
+
+
+def normalize_room_type(raw_type: str) -> str:
+    """Normalize AI-detected room type to cad_compliance_rag format."""
+    raw_lower = raw_type.lower().strip()
+    return ROOM_TYPE_MAP.get(raw_lower, "Unknown")
 
 
 def calculate_dynamic_scale(structure_predictions, default_scale=100.0):
     """Calculate pixels per meter based on detected door widths."""
     doors = []
     for item in structure_predictions:
-        # Look for single doors only (standard width)
         if "door" in item['class'].lower() and "double" not in item['class'].lower():
-            doors.append(item['width'])  # Door width in pixels
+            doors.append(item['width'])
     
     if not doors:
         return default_scale
     
     avg_door_pixel_width = sum(doors) / len(doors)
-    # Standard door width is ~0.9m
-    new_scale = avg_door_pixel_width / 0.9
+    new_scale = avg_door_pixel_width / 0.9  # Standard door width ~0.9m
     
-    print(f"📏 Auto-Calibration: Found {len(doors)} doors. Calculated Scale: {new_scale:.2f} px/m")
+    print(f"📏 Auto-Calibration: Found {len(doors)} doors. Scale: {new_scale:.2f} px/m")
     return new_scale
 
 
+def calculate_proposed_fix(room_box, rule_id, expected_str, current_metrics, scale):
+    """
+    Calculate a proposed schematic fix for a violation.
+    Returns a dictionary with 'type', 'box' (normalized), and 'description'.
+    """
+    import re
+    
+    # Parse target value from expected string (e.g., "area_sqm >= 12.0")
+    m = re.search(r">=\s*([0-9.]+)", expected_str or "")
+    if not m:
+        return None
+        
+    target_val = float(m.group(1))
+    
+    # Current dimensions in meters
+    w_m = current_metrics['width']
+    h_m = current_metrics['height']
+    
+    # Current box in normalized coords
+    bx, by, bw, bh = room_box['x'], room_box['y'], room_box['w'], room_box['h']
+    
+    new_w_m, new_h_m = w_m, h_m
+    description = ""
+    
+    if "MIN-AREA" in rule_id:
+        # Expand proportionally to meet area
+        current_area = w_m * h_m
+        if current_area <= 0: return None
+        ratio = (target_val / current_area) ** 0.5
+        new_w_m = w_m * ratio
+        new_h_m = h_m * ratio
+        description = f"Expand room area to {target_val}m²"
+        
+    elif "MIN-WIDTH" in rule_id:
+        # Expand smallest dimension to target width
+        if w_m < target_val:
+            new_w_m = target_val
+            description = f"Widen room to {target_val}m"
+        elif h_m < target_val:
+            new_h_m = target_val
+            description = f"Widen room to {target_val}m"
+        else:
+            return None # Already wide enough?
+            
+    elif "HAS-WINDOW" in rule_id:
+        # For window violations, we highlight the room and suggest installation
+        # Since we can't easily know exterior walls, we highlight the room itself.
+        description = "Install Window (Natural Vent.)"
+        return {
+            "type": "installation",
+            "description": description,
+            "box": room_box,
+            "targetValue": 0
+        }
+
+    else:
+        return None # No fix logic for this rule yet
+
+    # Calculate new normalized box dimensions
+    # Assuming we expand from the center
+    cx = bx + bw/2
+    cy = by + bh/2
+    
+    scale_factor_w = new_w_m / w_m if w_m > 0 else 1
+    scale_factor_h = new_h_m / h_m if h_m > 0 else 1
+    
+    new_bw = bw * scale_factor_w
+    new_bh = bh * scale_factor_h
+    
+    new_bx = cx - new_bw/2
+    new_by = cy - new_bh/2
+    
+    return {
+        "type": "expansion",
+        "description": description,
+        "box": {
+            "x": round(new_bx, 4),
+            "y": round(new_by, 4),
+            "w": round(new_bw, 4),
+            "h": round(new_bh, 4)
+        },
+        "targetValue": target_val
+    }
+
+
 class SmartArchitect:
-    """Full analysis class for floor plan processing."""
+    """Full analysis class for floor plan processing with CAD Compliance RAG."""
     
     def __init__(self):
         print("🚀 Initializing SmartArchitect...")
@@ -62,30 +204,48 @@ class SmartArchitect:
         return base64.b64encode(buffer).decode('utf-8')
 
     def identify_room_type(self, room_crop):
-        """Identify room type with Open Plan support using Vision models."""
+        """Identify room type using Grok 3 Vision (paid model)."""
         base64_image = self.encode_image(room_crop)
 
-        # Improved prompt for open plan detection
-        prompt = """
-        Analyze this floor plan crop. Identify the room type based on furniture.
-        Rules:
-        1. If it contains BOTH kitchen elements (stove/sink) AND living room elements (sofa/TV), output: "Open Plan Kitchen/Living".
-        2. Otherwise, use standard names: "Bedroom", "Bathroom", "Kitchen", "Living Room", "Dining Room", "Majlis".
-        3. If empty, output: "Unknown".
+        prompt = """Analyze this floor plan room crop. Identify the room type based on the labels, furniture, and fixtures visible.
 
-        Output ONLY the single category name without explanation.
-        """
+Choose ONE from this exact list:
+- Bedroom (including Master Bedroom, Guest Room, Kids Room)
+- Living Room (including Family Room, Salon, Majlis)
+- Kitchen
+- Bathroom (full bath with shower/tub)
+- WC (toilet only, half bath, powder room)
+- Dining Room
+- Corridor (hallway)
+- Closet
+- Laundry
+- Unknown
 
-        # Updated vision models - use free/working models
+- Laundry
+- Unknown
+
+If the room combines two functions (e.g., Open Kitchen and Living), choose 'Living Room'.
+Output ONLY the room type name, nothing else."""
+
+        # Paid vision models - Grok 4.1 Fast first
         vision_models = [
-            "google/gemini-2.0-flash-exp:free",      # Free Gemini Flash
-            "meta-llama/llama-3.2-11b-vision-instruct:free",  # Free Llama Vision
-            "qwen/qwen-2-vl-7b-instruct:free",       # Free Qwen Vision
+            "x-ai/grok-4.1-fast",              # Grok 4.1 Fast (primary - requires credits)
+            "openai/gpt-4o",                    # GPT-4o fallback (requires credits)
+            "google/gemini-2.0-flash-exp:free", # Free fallback
+            "meta-llama/llama-3.2-11b-vision-instruct:free", # Free fallback 2
+            "qwen/qwen-2-vl-7b-instruct:free",  # Free fallback 3
         ]
+
+        import time
 
         for model_id in vision_models:
             try:
                 print(f"    🤖 Trying VLM: {model_id}...")
+                
+                # Add delay for usually rate-limited free models
+                if ":free" in model_id:
+                    time.sleep(2)
+
                 response = self.ai.chat.completions.create(
                     model=model_id,
                     messages=[
@@ -97,19 +257,17 @@ class SmartArchitect:
                             ]
                         }
                     ],
-                    max_tokens=50
+                    max_tokens=60
                 )
                 result = response.choices[0].message.content.strip()
                 print(f"    ✓ {model_id} Identified: {result}")
                 
-                # Normalize result
-                valid_types = ["Bedroom", "Kitchen", "Bathroom", "Living Room", 
-                               "Dining Room", "Majlis", "Open Plan Kitchen/Living"]
-                for vt in valid_types:
-                    if vt.lower() in result.lower():
-                        return vt
-                
-                return result if len(result) < 30 else "Unknown"
+                # Specific validation for empty or garbage results
+                if not result or len(result) > 50 or "error" in result.lower():
+                    print(f"    ⚠️ Invalid result from {model_id}: {result}")
+                    continue
+                    
+                return result
                 
             except Exception as e:
                 print(f"    ⚠️ {model_id} Error: {e}")
@@ -118,16 +276,9 @@ class SmartArchitect:
         print("    ❌ All VLM models failed")
         return "Unknown"
 
-    def analyze(self, image_path: str):
+    def analyze(self, image_path: str, task_id: str = "unknown"):
         """
-        Full analysis pipeline:
-        1. Detect structures (doors, windows)
-        2. Detect rooms
-        3. Identify room types with LLM
-        4. Check window presence
-        5. Calculate metrics
-        6. Check SBC compliance
-        7. Draw bounding boxes
+        Full analysis pipeline with CAD Compliance RAG integration.
         """
         print(f"📐 Analyzing: {image_path}")
         
@@ -148,10 +299,10 @@ class SmartArchitect:
             print(f"⚠️ Structure detection failed: {e}")
             structure_predictions = []
         
-        # Step 2: Calculate dynamic scale from doors
+        # Step 2: Calculate dynamic scale
         pixels_per_meter = calculate_dynamic_scale(structure_predictions, PIXELS_PER_METER)
         
-        # Collect all windows
+        # Collect windows
         windows = []
         for item in structure_predictions:
             if "window" in item['class'].lower():
@@ -172,15 +323,15 @@ class SmartArchitect:
             return {"error": "No rooms detected"}, img
         
         rooms_data = []
+        rooms_for_rag = []  # Format for cad_compliance_rag
         
         # Step 4: Process each room
-        print("🧠 3. Analyzing rooms with AI...")
+        print("🧠 3. Analyzing rooms with Grok 3 Vision...")
         for i, room in enumerate(room_predictions):
             rx, ry, rw, rh = room['x'], room['y'], room['width'], room['height']
             x1, y1 = int(rx - rw/2), int(ry - rh/2)
             x2, y2 = int(rx + rw/2), int(ry + rh/2)
             
-            # Ensure bounds are within image
             x1, y1 = max(0, x1), max(0, y1)
             x2, y2 = min(W, x2), min(H, y2)
             
@@ -190,7 +341,8 @@ class SmartArchitect:
             # Crop room for AI identification
             room_crop = img[y1:y2, x1:x2]
             print(f"   - Analyzing room {i+1}...")
-            room_type = self.identify_room_type(room_crop)
+            raw_room_type = self.identify_room_type(room_crop)
+            normalized_type = normalize_room_type(raw_room_type)
             
             # Window detection with padding
             has_window = False
@@ -205,40 +357,17 @@ class SmartArchitect:
                     has_window = True
                     break
             
-            # Calculate real dimensions
+            # Calculate dimensions
             real_w = round(rw / pixels_per_meter, 2)
             real_h = round(rh / pixels_per_meter, 2)
             area_m2 = round(real_w * real_h, 2)
-            min_dim_m = min(real_w, real_h)
+            min_dim_m = round(min(real_w, real_h), 2)
             
-            # Check SBC compliance
-            sbc_result = query_sbc(room_type, area_m2, min_dim_m)
-            is_compliant = sbc_result["is_compliant"]
-            rag_reason = sbc_result["reason"]
-            
-            # Additional ventilation check
-            needs_window = room_type in ["Bedroom", "Living Room", "Majlis", "Dining Room"]
-            if needs_window and not has_window:
-                is_compliant = False
-                rag_reason = "الغرفة تتطلب نافذة للتهوية الطبيعية حسب كود البناء السعودي"
-            
-            # Draw bounding box
-            color = (0, 255, 0) if is_compliant else (0, 0, 255)  # Green or Red
-            cv2.rectangle(visual_result, (x1, y1), (x2, y2), color, 3)
-            
-            # Draw label
-            label = f"{room_type} | {area_m2}m2 (min: {min_dim_m}m)"
-            font = cv2.FONT_HERSHEY_SIMPLEX
-            font_scale = 0.5
-            thickness = 2
-            (label_w, label_h), _ = cv2.getTextSize(label, font, font_scale, thickness)
-            cv2.rectangle(visual_result, (x1, y1 - label_h - 10), (x1 + label_w + 10, y1), color, -1)
-            cv2.putText(visual_result, label, (x1 + 5, y1 - 5), font, font_scale, (255, 255, 255), thickness)
-            
-            # Store room data
-            rooms_data.append({
+            # Build room data for frontend
+            room_data = {
                 "id": f"room_{i+1}",
-                "type": room_type,
+                "type": raw_room_type,  # Original for display
+                "normalizedType": normalized_type,  # For RAG
                 "metrics": {
                     "area": area_m2,
                     "minDim": min_dim_m,
@@ -248,17 +377,98 @@ class SmartArchitect:
                 "ventilation": {
                     "hasWindow": has_window
                 },
-                "isCompliant": is_compliant,
-                "ragReason": rag_reason,
                 "box": {
                     "x": round(x1 / W, 4),
                     "y": round(y1 / H, 4),
                     "w": round((x2 - x1) / W, 4),
                     "h": round((y2 - y1) / H, 4)
                 }
+            }
+            rooms_data.append(room_data)
+            
+            # Build room for CAD Compliance RAG
+            rooms_for_rag.append({
+                "id": i + 1,
+                "type": normalized_type,
+                "metrics": {
+                    "area_sqm": area_m2,
+                    "min_dimension_m": min_dim_m
+                },
+                "ventilation": {
+                    "has_window": has_window
+                }
             })
         
-        # Draw detected windows/doors in blue
+        # Step 5: Run CAD Compliance RAG
+        print("📋 4. Running CAD Compliance RAG analysis...")
+        try:
+            compliance_result = analyze_plan(
+                project_id=task_id,
+                asset_id="unit_01",
+                rooms=rooms_for_rag
+            )
+            print(f"✓ Compliance check complete: {compliance_result['summary']['violations_total']} violations")
+        except Exception as e:
+            print(f"⚠️ CAD Compliance RAG error: {e}")
+            compliance_result = {
+                "summary": {"violations_total": 0, "warnings_total": 0},
+                "violations": [],
+                "warnings": []
+            }
+        
+        # Step 6: Merge compliance results into room data
+        violation_room_ids = {v.get("room_id") for v in compliance_result.get("violations", [])}
+        
+        for room in rooms_data:
+            room_num = int(room["id"].split("_")[1])
+            room["isCompliant"] = room_num not in violation_room_ids
+            
+            # Find violation details for this room
+            for v in compliance_result.get("violations", []):
+                if v.get("room_id") == room_num:
+                    room["violation"] = {
+                        "rule_id": v.get("rule_id"),
+                        "message": v.get("message"),
+                        "expected": v.get("expected"),
+                        "actual": v.get("actual"),
+                        "rule_sentence": v.get("rule_sentence"),
+                        "ref": v.get("ref")
+                    }
+                    
+                    # Calculate proposed fix if violation found (Auto-Correction)
+                    fix = calculate_proposed_fix(
+                        room["box"], 
+                        v.get("rule_id"), 
+                        v.get("expected"), 
+                        room["metrics"], 
+                        pixels_per_meter
+                    )
+                    if fix:
+                        room["proposedFix"] = fix
+                    break
+        
+        # Step 7: Draw bounding boxes
+        for room in rooms_data:
+            box = room["box"]
+            x1 = int(box["x"] * W)
+            y1 = int(box["y"] * H)
+            x2 = int((box["x"] + box["w"]) * W)
+            y2 = int((box["y"] + box["h"]) * H)
+            
+            is_compliant = room.get("isCompliant", True)
+            color = (0, 255, 0) if is_compliant else (0, 0, 255)
+            cv2.rectangle(visual_result, (x1, y1), (x2, y2), color, 3)
+            
+            # Draw label
+            label = f"{room['type']} | {room['metrics']['area']}m²"
+            font = cv2.FONT_HERSHEY_SIMPLEX
+            font_scale = 0.5
+            thickness = 2
+            (label_w, label_h), _ = cv2.getTextSize(label, font, font_scale, thickness)
+            cv2.rectangle(visual_result, (x1, y1 - label_h - 10), (x1 + label_w + 10, y1), color, -1)
+            cv2.putText(visual_result, label, (x1 + 5, y1 - 5), font, font_scale, (255, 255, 255), thickness)
+        
+        # Draw structures (doors, windows) in blue
         for item in structure_predictions:
             sx1 = int(item['x'] - item['width'] / 2)
             sy1 = int(item['y'] - item['height'] / 2)
@@ -268,7 +478,7 @@ class SmartArchitect:
         
         # Calculate overall score
         total_rooms = len(rooms_data)
-        compliant_rooms = sum(1 for r in rooms_data if r['isCompliant'])
+        compliant_rooms = sum(1 for r in rooms_data if r.get('isCompliant', True))
         score = round((compliant_rooms / total_rooms * 100) if total_rooms > 0 else 0)
         
         result = {
@@ -277,6 +487,9 @@ class SmartArchitect:
             "status": "Compliant" if score == 100 else "Non-Compliant",
             "total_rooms": total_rooms,
             "compliant_rooms": compliant_rooms,
+            "violations_count": compliance_result["summary"]["violations_total"],
+            "warnings_count": compliance_result["summary"]["warnings_total"],
+            "compliance_details": compliance_result,
             "scale_used": pixels_per_meter
         }
         
