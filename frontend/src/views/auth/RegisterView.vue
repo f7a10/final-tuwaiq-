@@ -71,40 +71,7 @@
             </transition>
           </div>
 
-          <!-- Account Type -->
-          <div>
-            <label class="block text-sm font-bold text-gray-700 mb-3">نوع الحساب</label>
-            <div class="grid grid-cols-2 gap-3">
-              <button 
-                type="button"
-                @click="form.accountType = 'personal'"
-                :class="[
-                  'p-4 border-2 rounded-xl transition-all duration-300 text-center group',
-                  form.accountType === 'personal' 
-                    ? 'border-primary bg-primary/5 text-primary shadow-md shadow-primary/10' 
-                    : 'border-gray-200 hover:border-primary/30 hover:bg-gray-50'
-                ]"
-              >
-                <i class="fas fa-user text-2xl mb-2 transition-transform group-hover:scale-110"></i>
-                <div class="font-bold text-sm">شخصي</div>
-                <p class="text-xs text-gray-400 mt-1">للاستخدام الفردي</p>
-              </button>
-              <button 
-                type="button"
-                @click="form.accountType = 'office'"
-                :class="[
-                  'p-4 border-2 rounded-xl transition-all duration-300 text-center group',
-                  form.accountType === 'office' 
-                    ? 'border-primary bg-primary/5 text-primary shadow-md shadow-primary/10' 
-                    : 'border-gray-200 hover:border-primary/30 hover:bg-gray-50'
-                ]"
-              >
-                <i class="fas fa-building text-2xl mb-2 transition-transform group-hover:scale-110"></i>
-                <div class="font-bold text-sm">مكتب هندسي</div>
-                <p class="text-xs text-gray-400 mt-1">للمكاتب والشركات</p>
-              </button>
-            </div>
-          </div>
+
 
           <!-- Password -->
           <div class="group">

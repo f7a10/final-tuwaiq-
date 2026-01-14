@@ -9,7 +9,7 @@ PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(_
 
 # API Keys
 ROBOFLOW_API_KEY = os.getenv("ROBOFLOW_API_KEY", "NmjqLgZyvnjZhiNJJXqH")
-OPENROUTER_API_KEY = os.getenv("OPENROUTER_API_KEY", "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")
+OPENROUTER_API_KEY = os.getenv("OPENROUTER_API_KEY", "")
 
 # JWT Configuration
 JWT_SECRET_KEY = os.getenv("JWT_SECRET_KEY", "emad-super-secret-key-change-in-production-2026")

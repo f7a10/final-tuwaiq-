@@ -17,13 +17,7 @@
       
       <div class="flex gap-3">
         <!-- Generative CAD Button -->
-        <button 
-          @click="showGeneratorModal = true"
-          class="px-4 py-2 text-sm font-bold text-white bg-accent text-primary rounded-lg hover:bg-accent/90 transition flex items-center gap-2 shadow-sm"
-        >
-          <i class="fas fa-magic"></i>
-          <span>توليد مخطط جديد</span>
-        </button>
+
 
         <!-- Edit Plan Button - New Integration -->
         <button 
@@ -35,26 +29,7 @@
         </button>
 
         <!-- New Download DXF Dropdown -->
-        <div class="relative group">
-          <button 
-            class="px-4 py-2 text-sm font-bold text-white bg-primary rounded-lg hover:bg-primary/90 transition flex items-center gap-2"
-          >
-            <i class="fas fa-drafting-compass"></i>
-            <span>تحميل CAD (DXF)</span>
-            <i class="fas fa-chevron-down text-xs mr-1"></i>
-          </button>
-          
-          <div class="absolute top-full left-0 mt-2 w-56 bg-white rounded-xl shadow-xl border border-gray-100 p-1 hidden group-hover:block z-50">
-             <button @click="downloadDxf('original')" class="w-full text-right px-4 py-3 hover:bg-gray-50 rounded-lg text-sm text-gray-700 flex items-center justify-between">
-                <span>المخطط الأصلي (Original)</span>
-                <i class="fas fa-file-invoice text-gray-400"></i>
-             </button>
-             <button @click="downloadDxf('corrected')" class="w-full text-right px-4 py-3 hover:bg-gray-50 rounded-lg text-sm text-gray-700 flex items-center justify-between border-t border-gray-50">
-                <span>المخطط المصحح (Corrected)</span>
-                <i class="fas fa-magic text-accent"></i>
-             </button>
-          </div>
-        </div>
+
 
         <button 
           @click="downloadImage"
@@ -423,7 +398,24 @@ onMounted(async () => {
         chatContainer.value.scrollTop = chatContainer.value.scrollHeight;
     }
 
-    // Polling logic
+    // If analysis is not in store, try to fetch from API
+    if (!analysisData.value.rooms || analysisData.value.rooms.length === 0) {
+        try {
+            const res = await fetch(`/api/analysis/${taskId.value}`);
+            if (res.ok) {
+                const data = await res.json();
+                if (data.status === 'completed' && data.result) {
+                    store.setAnalysis({ id: taskId.value, ...data.result });
+                } else if (data.rooms && data.rooms.length > 0) {
+                    store.setAnalysis({ id: taskId.value, ...data });
+                }
+            }
+        } catch (e) {
+            console.error("Failed to fetch analysis:", e);
+        }
+    }
+
+    // Polling logic for processing status
     if (analysisData.value && (analysisData.value.status === 'Processing' || analysisData.value.status === 'processing_started' || analysisData.value.status === 'processing')) {
         pollInterval = setInterval(async () => {
             if (!taskId.value) return; 
@@ -443,21 +435,6 @@ onMounted(async () => {
                 console.error("Polling error", e);
             }
         }, 3000);
-    }
-
-    // Mock data load if store is empty (Simulating backend fetch)
-    if (!analysisData.value.rooms || analysisData.value.rooms.length === 0) {
-        const mockFullData = {
-            id: taskId.value,
-            imageUrl: 'https://raw.githubusercontent.com/zhixuhao/unet/master/img/30.png',
-            rooms: [
-                { id: 1, type: 'Bedroom', isCompliant: true, metrics: { area: 14.5, minDim: 3.2 }, box: { x: 0.1, y: 0.1, w: 0.3, h: 0.4 } },
-                { id: 2, type: 'Kitchen', isCompliant: false, metrics: { area: 4.2, minDim: 1.8 }, ragReason: 'المساحة أقل من الحد الأدنى للمطبخ (4.5م²) حسب كود البناء السعودي 501.2.', box: { x: 0.5, y: 0.1, w: 0.2, h: 0.25 } },
-                { id: 3, type: 'Living Room', isCompliant: true, metrics: { area: 22.0, minDim: 4.5 }, box: { x: 0.1, y: 0.55, w: 0.5, h: 0.35 } },
-                { id: 4, type: 'Bathroom', isCompliant: false, metrics: { area: 3.0, minDim: 1.5 }, ragReason: 'عدم وجود نافذة للتهوية الطبيعية. يجب توفير مروحة شفط ميكانيكية (كود 1202.5).', box: { x: 0.65, y: 0.6, w: 0.15, h: 0.2 } }
-            ]
-        };
-        store.setAnalysis(mockFullData);
     }
 });
 
@@ -615,6 +592,11 @@ const generateDxfLayout = async () => {
 
 // Open Edit Plan (Generator) with current rooms data
 const openEditPlan = () => {
+    // Store the image URL for the generator to display as background
+    if (analysisData.value && analysisData.value.imageUrl) {
+        localStorage.setItem('emad_edit_image', analysisData.value.imageUrl);
+    }
+    
     // Transform analysisData rooms to generator format and save to localStorage
     if (analysisData.value && analysisData.value.rooms && analysisData.value.rooms.length > 0) {
         const roomsForEdit = analysisData.value.rooms.map((room, index) => {
@@ -625,13 +607,20 @@ const openEditPlan = () => {
                             ? Math.round((room.metrics.area / room.metrics.minDim) * 10) / 10 
                             : 5);
             
+            // Calculate position from bounding box if available
+            const boxX = room.box ? room.box.x * 800 : 50 + (index % 3) * 180;
+            const boxY = room.box ? room.box.y * 600 : 50 + Math.floor(index / 3) * 250;
+            
             return {
                 type: room.type || room.normalizedType || 'Bedroom',
                 width: Math.round(width * 10) / 10,  // Round to 1 decimal
                 length: Math.round(height * 10) / 10, // Round to 1 decimal
+                x: Math.round(boxX),
+                y: Math.round(boxY),
                 originalId: room.id,
                 isCompliant: room.isCompliant,
                 violation: room.violation,
+                ragReason: room.ragReason,
                 metrics: room.metrics  // Keep original metrics for reference
             };
         });

@@ -148,12 +148,7 @@
                   <h3 class="text-2xl font-bold text-gray-800 mb-2">اضغط أو اسحب ملف المخطط هنا</h3>
                   <p class="text-base text-gray-400">يدعم JPG, PNG, PDF (الحد الأقصى 10 ميجا)</p>
                 </div>
-                <button 
-                  @click.stop="loadDemoData"
-                  class="mt-6 px-5 py-2.5 text-sm font-bold text-primary bg-white border border-primary/20 rounded-xl hover:bg-primary hover:text-white transition shadow-sm z-20 pointer-events-auto"
-                >
-                  ✨ تجربة مخطط افتراضي
-                </button>
+
               </div>
 
               <div v-else class="w-full h-full flex flex-col items-center">
@@ -173,35 +168,7 @@
           </div>
 
           <div class="bg-white/90 backdrop-blur rounded-[2rem] p-8 shadow-xl border border-gray-100 flex flex-col justify-between h-full">
-            <div>
-              <h3 class="text-xl font-bold text-primary mb-8 flex items-center gap-3 border-b border-gray-100 pb-4">
-                <i class="fas fa-sliders-h"></i> إعدادات الفحص
-              </h3>
-              
-              <div class="space-y-6">
-                <label class="flex items-start gap-4 cursor-pointer group">
-                  <div class="relative flex items-center">
-                    <input type="checkbox" v-model="settings.checkVentilation" class="peer h-6 w-6 cursor-pointer appearance-none rounded-md border-2 border-gray-300 transition-all checked:border-primary checked:bg-primary hover:border-primary/50">
-                    <i class="fas fa-check text-white absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 text-xs opacity-0 peer-checked:opacity-100 pointer-events-none"></i>
-                  </div>
-                  <div>
-                    <span class="font-bold text-gray-800 group-hover:text-primary transition text-lg">التحقق من التهوية</span>
-                    <p class="text-sm text-gray-400 mt-1">مطابقة نسبة النوافذ لمساحة الغرفة حسب الكود.</p>
-                  </div>
-                </label>
 
-                <label class="flex items-start gap-4 cursor-pointer group">
-                  <div class="relative flex items-center">
-                    <input type="checkbox" v-model="settings.checkDimensions" class="peer h-6 w-6 cursor-pointer appearance-none rounded-md border-2 border-gray-300 transition-all checked:border-primary checked:bg-primary hover:border-primary/50">
-                    <i class="fas fa-check text-white absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 text-xs opacity-0 peer-checked:opacity-100 pointer-events-none"></i>
-                  </div>
-                  <div>
-                    <span class="font-bold text-gray-800 group-hover:text-primary transition text-lg">أبعاد الغرف</span>
-                    <p class="text-sm text-gray-400 mt-1">التأكد من الحد الأدنى لطول وعرض كل غرفة.</p>
-                  </div>
-                </label>
-              </div>
-            </div>
 
             <button 
               @click="uploadAndAnalyze"

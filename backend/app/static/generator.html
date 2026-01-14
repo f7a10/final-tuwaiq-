@@ -352,6 +352,66 @@
                     </div>
                 </div>
 
+                <!-- Building Elements Section -->
+                <div class="glass-card rounded-xl p-4">
+                    <h3 class="font-bold mb-3 flex items-center gap-2">
+                        <i class="fas fa-hammer text-teal-500"></i>
+                        عناصر البناء
+                    </h3>
+                    <div class="grid grid-cols-3 gap-2 mb-3">
+                        <button onclick="addWall()"
+                            class="py-2 px-3 rounded-lg text-sm btn-glass flex flex-col items-center gap-1 hover:bg-gray-200 dark:hover:bg-gray-700 transition">
+                            <i class="fas fa-minus text-gray-600"></i>
+                            <span class="text-xs">جدار</span>
+                        </button>
+                        <button onclick="addDoor()"
+                            class="py-2 px-3 rounded-lg text-sm btn-glass flex flex-col items-center gap-1 hover:bg-purple-100 dark:hover:bg-purple-900/30 transition">
+                            <i class="fas fa-door-open text-purple-500"></i>
+                            <span class="text-xs">باب</span>
+                        </button>
+                        <button onclick="addWindow()"
+                            class="py-2 px-3 rounded-lg text-sm btn-glass flex flex-col items-center gap-1 hover:bg-cyan-100 dark:hover:bg-cyan-900/30 transition">
+                            <i class="fas fa-window-maximize text-cyan-500"></i>
+                            <span class="text-xs">نافذة</span>
+                        </button>
+                    </div>
+
+                    <!-- Background Image Toggle -->
+                    <div id="bgImageControl" class="hidden border-t border-gray-200 dark:border-gray-700 pt-3 mt-3">
+                        <div class="flex items-center justify-between text-sm">
+                            <span class="flex items-center gap-2">
+                                <i class="fas fa-image text-gray-500"></i>
+                                إظهار صورة المخطط
+                            </span>
+                            <div id="bgImageToggle" class="toggle-switch active" onclick="toggleBackgroundImage()">
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Elements Summary -->
+                    <div
+                        class="grid grid-cols-3 gap-2 text-center text-xs mt-3 pt-3 border-t border-gray-200 dark:border-gray-700">
+                        <div class="p-2 rounded-lg bg-gray-100 dark:bg-gray-800">
+                            <div id="walls-count" class="font-bold text-gray-600">0</div>
+                            <div class="text-gray-400">جدران</div>
+                        </div>
+                        <div class="p-2 rounded-lg bg-purple-50 dark:bg-purple-900/20">
+                            <div id="doors-count" class="font-bold text-purple-600">0</div>
+                            <div class="text-gray-400">أبواب</div>
+                        </div>
+                        <div class="p-2 rounded-lg bg-cyan-50 dark:bg-cyan-900/20">
+                            <div id="windows-count" class="font-bold text-cyan-600">0</div>
+                            <div class="text-gray-400">نوافذ</div>
+                        </div>
+                    </div>
+
+                    <!-- Elements List -->
+                    <div id="elements-list"
+                        class="mt-3 pt-3 border-t border-gray-200 dark:border-gray-700 space-y-2 max-h-48 overflow-y-auto">
+                        <!-- Elements will be rendered here -->
+                    </div>
+                </div>
+
                 <!-- Compliance Summary -->
                 <div class="glass-card rounded-xl p-4">
                     <h3 class="font-bold mb-4 flex items-center gap-2">
@@ -514,11 +574,19 @@
         // State Management
         // ==========================================
         let rooms = [];
+        let walls = [];  // Building elements: walls
+        let doors = [];  // Building elements: doors
+        let windows = []; // Building elements: windows
         let selectedRoomIndex = -1;
+        let selectedElementType = null; // 'wall', 'door', 'window' or null
+        let selectedElementIndex = -1;
         let isDragging = false;
         let dragOffset = { x: 0, y: 0 };
         let canvasScale = 1;
         let showGrid = true;
+        let showBackgroundImage = true;
+        let backgroundImage = null;
+        let backgroundImageUrl = null;
         let isDarkMode = false;
 
         // Room Types Configuration
@@ -529,6 +597,13 @@
             'Bathroom': { ar: 'دورة مياه', icon: 'fa-bath', zone: 'service', color: '#f59e0b' },
             'Majlis': { ar: 'مجلس', icon: 'fa-users', zone: 'public', color: '#3b82f6' },
             'Dining Room': { ar: 'غرفة طعام', icon: 'fa-utensils', zone: 'public', color: '#3b82f6' }
+        };
+
+        // Building Elements Configuration
+        const elementTypes = {
+            'wall': { ar: 'جدار', icon: 'fa-minus', color: '#374151', defaultWidth: 0.2, defaultLength: 3 },
+            'door': { ar: 'باب', icon: 'fa-door-open', color: '#8b5cf6', defaultWidth: 0.9, defaultLength: 0.1 },
+            'window': { ar: 'نافذة', icon: 'fa-window-maximize', color: '#06b6d4', defaultWidth: 1.2, defaultLength: 0.1 }
         };
 
         const SCALE = 30; // Pixels per meter for canvas
@@ -561,15 +636,85 @@
             ctx.fillStyle = isDarkMode ? '#1e293b' : '#f8fafc';
             ctx.fillRect(0, 0, width, height);
 
+            // Draw background image if available
+            if (showBackgroundImage && backgroundImage && backgroundImage.complete) {
+                ctx.globalAlpha = 0.3; // Semi-transparent
+                const imgAspect = backgroundImage.width / backgroundImage.height;
+                const canvasAspect = width / height;
+                let drawWidth, drawHeight, drawX, drawY;
+
+                if (imgAspect > canvasAspect) {
+                    drawWidth = width - CANVAS_PADDING * 2;
+                    drawHeight = drawWidth / imgAspect;
+                    drawX = CANVAS_PADDING;
+                    drawY = (height - drawHeight) / 2;
+                } else {
+                    drawHeight = height - CANVAS_PADDING * 2;
+                    drawWidth = drawHeight * imgAspect;
+                    drawX = (width - drawWidth) / 2;
+                    drawY = CANVAS_PADDING;
+                }
+
+                ctx.drawImage(backgroundImage, drawX, drawY, drawWidth, drawHeight);
+                ctx.globalAlpha = 1.0;
+            }
+
             // Draw grid
             if (showGrid) {
                 drawGrid(width, height);
             }
 
+            // Draw walls (behind rooms)
+            walls.forEach((wall, idx) => {
+                drawBuildingElement(wall, 'wall', idx);
+            });
+
             // Draw rooms
             rooms.forEach((room, idx) => {
                 drawRoom(room, idx);
             });
+
+            // Draw doors and windows (on top)
+            doors.forEach((door, idx) => {
+                drawBuildingElement(door, 'door', idx);
+            });
+            windows.forEach((win, idx) => {
+                drawBuildingElement(win, 'window', idx);
+            });
+        }
+
+        // Draw building elements (walls, doors, windows)
+        function drawBuildingElement(element, type, index) {
+            const config = elementTypes[type];
+            const x = (element.x || 50) * canvasScale + CANVAS_PADDING;
+            const y = (element.y || 50) * canvasScale + CANVAS_PADDING;
+            const w = (element.width || config.defaultWidth) * SCALE * canvasScale;
+            const h = (element.length || config.defaultLength) * SCALE * canvasScale;
+
+            const isSelected = selectedElementType === type && selectedElementIndex === index;
+
+            ctx.fillStyle = config.color + (type === 'wall' ? 'dd' : '80');
+            ctx.fillRect(x, y, w, h);
+
+            ctx.strokeStyle = isSelected ? '#0f766e' : config.color;
+            ctx.lineWidth = isSelected ? 3 : 2;
+            ctx.strokeRect(x, y, w, h);
+
+            // Selection highlight
+            if (isSelected) {
+                ctx.setLineDash([5, 5]);
+                ctx.strokeStyle = '#0f766e';
+                ctx.strokeRect(x - 3, y - 3, w + 6, h + 6);
+                ctx.setLineDash([]);
+            }
+
+            // Label for larger elements
+            if (w > 30 || h > 30) {
+                ctx.fillStyle = isDarkMode ? '#f1f5f9' : '#1e293b';
+                ctx.font = `${10 * canvasScale}px Cairo`;
+                ctx.textAlign = 'center';
+                ctx.fillText(config.ar, x + w / 2, y + h / 2 + 4);
+            }
         }
 
         function drawGrid(width, height) {
@@ -689,13 +834,75 @@
             return -1;
         }
 
+        function findElementAtPoint(px, py) {
+            const HIT_MARGIN = 10; // Extra pixels to make it easier to click thin elements like walls
+
+            // Check windows first (on top)
+            for (let i = windows.length - 1; i >= 0; i--) {
+                const el = windows[i];
+                const config = elementTypes.window;
+                const ex = el.x || 50;
+                const ey = el.y || 50;
+                const ew = (el.width || config.defaultWidth) * SCALE;
+                const eh = (el.length || config.defaultLength) * SCALE;
+                if (px >= ex - HIT_MARGIN && px <= ex + ew + HIT_MARGIN &&
+                    py >= ey - HIT_MARGIN && py <= ey + eh + HIT_MARGIN) {
+                    return { type: 'window', index: i, element: el };
+                }
+            }
+            // Check doors
+            for (let i = doors.length - 1; i >= 0; i--) {
+                const el = doors[i];
+                const config = elementTypes.door;
+                const ex = el.x || 50;
+                const ey = el.y || 50;
+                const ew = (el.width || config.defaultWidth) * SCALE;
+                const eh = (el.length || config.defaultLength) * SCALE;
+                if (px >= ex - HIT_MARGIN && px <= ex + ew + HIT_MARGIN &&
+                    py >= ey - HIT_MARGIN && py <= ey + eh + HIT_MARGIN) {
+                    return { type: 'door', index: i, element: el };
+                }
+            }
+            // Check walls
+            for (let i = walls.length - 1; i >= 0; i--) {
+                const el = walls[i];
+                const config = elementTypes.wall;
+                const ex = el.x || 50;
+                const ey = el.y || 50;
+                const ew = (el.width || config.defaultWidth) * SCALE;
+                const eh = (el.length || config.defaultLength) * SCALE;
+                if (px >= ex - HIT_MARGIN && px <= ex + ew + HIT_MARGIN &&
+                    py >= ey - HIT_MARGIN && py <= ey + eh + HIT_MARGIN) {
+                    return { type: 'wall', index: i, element: el };
+                }
+            }
+            return null;
+        }
+
         function handleMouseDown(e) {
             e.preventDefault();
             const coords = getCanvasCoords(e);
-            const roomIdx = findRoomAtPoint(coords.x, coords.y);
 
+            // First check for building elements
+            const element = findElementAtPoint(coords.x, coords.y);
+            if (element) {
+                selectedElementType = element.type;
+                selectedElementIndex = element.index;
+                selectedRoomIndex = -1;
+                isDragging = true;
+                dragOffset.x = coords.x - (element.element.x || 50);
+                dragOffset.y = coords.y - (element.element.y || 50);
+                canvas.style.cursor = 'grabbing';
+                renderCanvas();
+                return;
+            }
+
+            // Then check for rooms
+            const roomIdx = findRoomAtPoint(coords.x, coords.y);
             if (roomIdx !== -1) {
                 selectedRoomIndex = roomIdx;
+                selectedElementType = null;
+                selectedElementIndex = -1;
                 isDragging = true;
                 const room = rooms[roomIdx];
                 dragOffset.x = coords.x - (room.x || 50);
@@ -703,12 +910,14 @@
                 canvas.style.cursor = 'grabbing';
             } else {
                 selectedRoomIndex = -1;
+                selectedElementType = null;
+                selectedElementIndex = -1;
             }
             renderCanvas();
         }
 
         function handleMouseMove(e) {
-            if (!isDragging || selectedRoomIndex === -1) return;
+            if (!isDragging) return;
             e.preventDefault();
 
             const coords = getCanvasCoords(e);
@@ -723,15 +932,40 @@
             newX = Math.max(0, newX);
             newY = Math.max(0, newY);
 
-            rooms[selectedRoomIndex].x = newX;
-            rooms[selectedRoomIndex].y = newY;
+            // Update position based on what's selected
+            if (selectedElementType && selectedElementIndex !== -1) {
+                let targetArray;
+                if (selectedElementType === 'wall') targetArray = walls;
+                else if (selectedElementType === 'door') targetArray = doors;
+                else if (selectedElementType === 'window') targetArray = windows;
+
+                if (targetArray && targetArray[selectedElementIndex]) {
+                    targetArray[selectedElementIndex].x = newX;
+                    targetArray[selectedElementIndex].y = newY;
+                }
+            } else if (selectedRoomIndex !== -1) {
+                rooms[selectedRoomIndex].x = newX;
+                rooms[selectedRoomIndex].y = newY;
+            }
 
             renderCanvas();
         }
 
         function handleMouseUp() {
+            if (isDragging) {
+                saveState();
+            }
             isDragging = false;
             canvas.style.cursor = 'grab';
+        }
+
+        // Save current layout state to localStorage
+        function saveState() {
+            localStorage.setItem('emad_edit_rooms', JSON.stringify(rooms));
+            localStorage.setItem('emad_edit_walls', JSON.stringify(walls));
+            localStorage.setItem('emad_edit_doors', JSON.stringify(doors));
+            localStorage.setItem('emad_edit_windows', JSON.stringify(windows));
+            console.log('Layout state saved to localStorage');
         }
 
         function handleTouchStart(e) {
@@ -757,6 +991,7 @@
                 validation: null
             };
             rooms.push(newRoom);
+            saveState();
             renderRooms();
             renderCanvas();
         }
@@ -765,6 +1000,7 @@
             rooms.splice(idx, 1);
             if (selectedRoomIndex === idx) selectedRoomIndex = -1;
             else if (selectedRoomIndex > idx) selectedRoomIndex--;
+            saveState();
             renderRooms();
             renderCanvas();
         }
@@ -782,14 +1018,199 @@
                 // For dimension changes, only update canvas and summary - don't re-render room list
                 // This prevents the input from losing focus
                 updateSummary();
+                saveState();
                 renderCanvas();
             }
         }
 
         function selectRoom(idx) {
             selectedRoomIndex = idx;
+            selectedElementType = null;
+            selectedElementIndex = -1;
             renderRooms();
             renderCanvas();
+        }
+
+        // ==========================================
+        // Building Element Management (Walls, Doors, Windows)
+        // ==========================================
+        function addWall() {
+            const newWall = {
+                width: elementTypes.wall.defaultWidth,
+                length: elementTypes.wall.defaultLength,
+                x: 50 + (walls.length % 4) * 100,
+                y: 30 + Math.floor(walls.length / 4) * 30
+            };
+            walls.push(newWall);
+            updateElementCounts();
+            saveState();
+            renderCanvas();
+        }
+
+        function addDoor() {
+            const newDoor = {
+                width: elementTypes.door.defaultWidth,
+                length: elementTypes.door.defaultLength,
+                x: 100 + (doors.length % 4) * 80,
+                y: 150 + Math.floor(doors.length / 4) * 30
+            };
+            doors.push(newDoor);
+            updateElementCounts();
+            saveState();
+            renderCanvas();
+        }
+
+        function addWindow() {
+            const newWindow = {
+                width: elementTypes.window.defaultWidth,
+                length: elementTypes.window.defaultLength,
+                x: 120 + (windows.length % 4) * 80,
+                y: 200 + Math.floor(windows.length / 4) * 30
+            };
+            windows.push(newWindow);
+            updateElementCounts();
+            saveState();
+            renderCanvas();
+        }
+
+        function removeElement(type, idx) {
+            if (type === 'wall') {
+                walls.splice(idx, 1);
+            } else if (type === 'door') {
+                doors.splice(idx, 1);
+            } else if (type === 'window') {
+                windows.splice(idx, 1);
+            }
+            if (selectedElementType === type && selectedElementIndex === idx) {
+                selectedElementType = null;
+                selectedElementIndex = -1;
+            }
+            updateElementCounts();
+            saveState();
+            renderCanvas();
+        }
+
+        function updateElementCounts() {
+            document.getElementById('walls-count').textContent = walls.length;
+            document.getElementById('doors-count').textContent = doors.length;
+            document.getElementById('windows-count').textContent = windows.length;
+            renderElements();
+        }
+
+        function renderElements() {
+            const container = document.getElementById('elements-list');
+            if (!container) return;
+
+            let html = '';
+
+            // Render walls
+            walls.forEach((wall, idx) => {
+                const isSelected = selectedElementType === 'wall' && selectedElementIndex === idx;
+                html += `
+                    <div class="flex items-center gap-2 p-2 rounded-lg ${isSelected ? 'bg-gray-200 dark:bg-gray-700' : 'bg-gray-50 dark:bg-gray-800'}" 
+                         onclick="selectElement('wall', ${idx})">
+                        <i class="fas fa-minus text-gray-500"></i>
+                        <span class="text-xs flex-1">جدار ${idx + 1}</span>
+                        <input type="number" step="0.1" min="0.1" max="20" value="${wall.width}" 
+                               class="w-12 px-1 py-0.5 text-xs rounded border dark:bg-gray-700 dark:border-gray-600"
+                               onchange="updateElement('wall', ${idx}, 'width', this.value)" onclick="event.stopPropagation()">
+                        <span class="text-xs text-gray-400">×</span>
+                        <input type="number" step="0.1" min="0.1" max="20" value="${wall.length}" 
+                               class="w-12 px-1 py-0.5 text-xs rounded border dark:bg-gray-700 dark:border-gray-600"
+                               onchange="updateElement('wall', ${idx}, 'length', this.value)" onclick="event.stopPropagation()">
+                        <button onclick="event.stopPropagation(); removeElement('wall', ${idx})" 
+                                class="text-red-500 hover:text-red-700 text-xs"><i class="fas fa-trash"></i></button>
+                    </div>
+                `;
+            });
+
+            // Render doors
+            doors.forEach((door, idx) => {
+                const isSelected = selectedElementType === 'door' && selectedElementIndex === idx;
+                html += `
+                    <div class="flex items-center gap-2 p-2 rounded-lg ${isSelected ? 'bg-purple-100 dark:bg-purple-900/40' : 'bg-purple-50 dark:bg-purple-900/20'}" 
+                         onclick="selectElement('door', ${idx})">
+                        <i class="fas fa-door-open text-purple-500"></i>
+                        <span class="text-xs flex-1">باب ${idx + 1}</span>
+                        <input type="number" step="0.1" min="0.1" max="5" value="${door.width}" 
+                               class="w-12 px-1 py-0.5 text-xs rounded border dark:bg-gray-700 dark:border-gray-600"
+                               onchange="updateElement('door', ${idx}, 'width', this.value)" onclick="event.stopPropagation()">
+                        <span class="text-xs text-gray-400">×</span>
+                        <input type="number" step="0.1" min="0.1" max="5" value="${door.length}" 
+                               class="w-12 px-1 py-0.5 text-xs rounded border dark:bg-gray-700 dark:border-gray-600"
+                               onchange="updateElement('door', ${idx}, 'length', this.value)" onclick="event.stopPropagation()">
+                        <button onclick="event.stopPropagation(); removeElement('door', ${idx})" 
+                                class="text-red-500 hover:text-red-700 text-xs"><i class="fas fa-trash"></i></button>
+                    </div>
+                `;
+            });
+
+            // Render windows
+            windows.forEach((win, idx) => {
+                const isSelected = selectedElementType === 'window' && selectedElementIndex === idx;
+                html += `
+                    <div class="flex items-center gap-2 p-2 rounded-lg ${isSelected ? 'bg-cyan-100 dark:bg-cyan-900/40' : 'bg-cyan-50 dark:bg-cyan-900/20'}" 
+                         onclick="selectElement('window', ${idx})">
+                        <i class="fas fa-window-maximize text-cyan-500"></i>
+                        <span class="text-xs flex-1">نافذة ${idx + 1}</span>
+                        <input type="number" step="0.1" min="0.1" max="5" value="${win.width}" 
+                               class="w-12 px-1 py-0.5 text-xs rounded border dark:bg-gray-700 dark:border-gray-600"
+                               onchange="updateElement('window', ${idx}, 'width', this.value)" onclick="event.stopPropagation()">
+                        <span class="text-xs text-gray-400">×</span>
+                        <input type="number" step="0.1" min="0.1" max="5" value="${win.length}" 
+                               class="w-12 px-1 py-0.5 text-xs rounded border dark:bg-gray-700 dark:border-gray-600"
+                               onchange="updateElement('window', ${idx}, 'length', this.value)" onclick="event.stopPropagation()">
+                        <button onclick="event.stopPropagation(); removeElement('window', ${idx})" 
+                                class="text-red-500 hover:text-red-700 text-xs"><i class="fas fa-trash"></i></button>
+                    </div>
+                `;
+            });
+
+            container.innerHTML = html || '<div class="text-center text-gray-400 text-xs py-2">لا توجد عناصر</div>';
+        }
+
+        function selectElement(type, idx) {
+            selectedElementType = type;
+            selectedElementIndex = idx;
+            selectedRoomIndex = -1;
+            renderElements();
+            renderCanvas();
+        }
+
+        function updateElement(type, idx, field, value) {
+            let targetArray;
+            if (type === 'wall') targetArray = walls;
+            else if (type === 'door') targetArray = doors;
+            else if (type === 'window') targetArray = windows;
+
+            if (targetArray && targetArray[idx]) {
+                targetArray[idx][field] = parseFloat(value) || 0.1;
+                saveState();
+                renderCanvas();
+            }
+        }
+
+        function toggleBackgroundImage() {
+            showBackgroundImage = !showBackgroundImage;
+            document.getElementById('bgImageToggle').classList.toggle('active', showBackgroundImage);
+            renderCanvas();
+        }
+
+        function loadBackgroundImage(url) {
+            if (!url) return;
+            backgroundImageUrl = url;
+            backgroundImage = new Image();
+            backgroundImage.crossOrigin = 'anonymous';
+            backgroundImage.onload = () => {
+                console.log('Background image loaded:', url);
+                document.getElementById('bgImageControl').classList.remove('hidden');
+                renderCanvas();
+            };
+            backgroundImage.onerror = () => {
+                console.error('Failed to load background image:', url);
+                backgroundImage = null;
+            };
+            backgroundImage.src = url;
         }
 
         // ==========================================
@@ -1311,7 +1732,8 @@
                         };
                     });
 
-                    localStorage.removeItem('emad_edit_rooms');
+                    // Removed localStorage.removeItem to allow refreshes during editing
+                    // localStorage.removeItem('emad_edit_rooms');
 
                     // Show notification that rooms were loaded from analysis
                     setTimeout(() => {
@@ -1332,6 +1754,31 @@
                 } catch (e) {
                     console.error('Failed to load rooms from storage:', e);
                 }
+            }
+
+            // Load background image from localStorage (from dashboard analysis)
+            const editImageUrl = localStorage.getItem('emad_edit_image');
+            if (editImageUrl) {
+                console.log('Loading background image from analysis:', editImageUrl);
+                loadBackgroundImage(editImageUrl);
+                // Removed localStorage.removeItem to allow refreshes during editing
+                // localStorage.removeItem('emad_edit_image'); 
+            }
+
+            // Load extra elements from localStorage if they exist
+            try {
+                const savedWalls = localStorage.getItem('emad_edit_walls');
+                if (savedWalls) walls = JSON.parse(savedWalls);
+
+                const savedDoors = localStorage.getItem('emad_edit_doors');
+                if (savedDoors) doors = JSON.parse(savedDoors);
+
+                const savedWindows = localStorage.getItem('emad_edit_windows');
+                if (savedWindows) windows = JSON.parse(savedWindows);
+
+                updateElementCounts();
+            } catch (e) {
+                console.error('Failed to load extra elements:', e);
             }
         }
 
@@ -1361,6 +1808,7 @@
 
             resizeCanvas();
             renderRooms();
+            updateElementCounts();
         }
 
         init();

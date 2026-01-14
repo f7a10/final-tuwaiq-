@@ -3,7 +3,9 @@ import { ref, computed } from 'vue'
 
 export const useAnalysisStore = defineStore('analysis', () => {
     // --- State ---
-    const currentAnalysis = ref(null)
+    // Load currentAnalysis from localStorage if available
+    const storedAnalysis = localStorage.getItem('emad_current_analysis')
+    const currentAnalysis = ref(storedAnalysis ? JSON.parse(storedAnalysis) : null)
 
     // Load history from localStorage if available
     const storedHistory = localStorage.getItem('emad_history')
@@ -24,8 +26,22 @@ export const useAnalysisStore = defineStore('analysis', () => {
 
     // --- Getters ---
     const getAnalysisById = (id) => {
+        // Check current analysis in memory
         if (currentAnalysis.value && currentAnalysis.value.id === id) {
             return currentAnalysis.value
+        }
+        // Check localStorage for persisted analysis
+        const storedAnalysis = localStorage.getItem('emad_current_analysis')
+        if (storedAnalysis) {
+            try {
+                const parsed = JSON.parse(storedAnalysis)
+                if (parsed && parsed.id === id) {
+                    currentAnalysis.value = parsed
+                    return parsed
+                }
+            } catch (e) {
+                console.error('Error parsing stored analysis:', e)
+            }
         }
         return null
     }
@@ -38,10 +54,17 @@ export const useAnalysisStore = defineStore('analysis', () => {
     const saveState = () => {
         localStorage.setItem('emad_history', JSON.stringify(history.value))
         localStorage.setItem('emad_chat_history', JSON.stringify(chatHistory.value))
+        // Also persist currentAnalysis
+        if (currentAnalysis.value) {
+            localStorage.setItem('emad_current_analysis', JSON.stringify(currentAnalysis.value))
+        }
     }
 
     const setAnalysis = (data) => {
         currentAnalysis.value = data
+        // Always persist to localStorage for dashboard refresh
+        localStorage.setItem('emad_current_analysis', JSON.stringify(data))
+
         if (!history.value.find(h => h.id === data.id)) {
             history.value.unshift({
                 id: data.id,
@@ -64,6 +87,8 @@ export const useAnalysisStore = defineStore('analysis', () => {
         // Update current if matches
         if (currentAnalysis.value && currentAnalysis.value.id === id) {
             currentAnalysis.value = { ...currentAnalysis.value, ...data }
+            // Persist to localStorage
+            localStorage.setItem('emad_current_analysis', JSON.stringify(currentAnalysis.value))
         }
         // Update history item
         const index = history.value.findIndex(h => h.id === id);

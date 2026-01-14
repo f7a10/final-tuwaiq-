@@ -146,32 +146,10 @@
         <h2 class="text-5xl font-bold mb-4">عماد</h2>
         <p class="text-xl opacity-90 mb-12 max-w-md">مدقق المخططات المعمارية بالذكاء الاصطناعي وفق كود البناء السعودي</p>
         
-        <div class="grid grid-cols-3 gap-8 mt-4">
-          <div class="text-center group">
-            <div class="text-4xl font-bold text-accent group-hover:scale-110 transition-transform">+1000</div>
-            <div class="text-sm opacity-75 mt-1">مخطط تم تحليله</div>
-          </div>
-          <div class="text-center group">
-            <div class="text-4xl font-bold text-accent group-hover:scale-110 transition-transform">99%</div>
-            <div class="text-sm opacity-75 mt-1">دقة الفحص</div>
-          </div>
-          <div class="text-center group">
-            <div class="text-4xl font-bold text-accent group-hover:scale-110 transition-transform">24/7</div>
-            <div class="text-sm opacity-75 mt-1">دعم فني</div>
-          </div>
-        </div>
+
         
         <!-- Testimonial -->
-        <div class="mt-16 bg-white/10 backdrop-blur-md rounded-2xl p-6 max-w-md border border-white/10">
-          <p class="text-white/90 text-sm leading-relaxed italic">"أداة رائعة ساعدتني في تدقيق عشرات المخططات بسرعة ودقة عالية. وفرت علينا الكثير من الوقت والجهد."</p>
-          <div class="flex items-center gap-3 mt-4">
-            <div class="w-10 h-10 bg-accent/30 rounded-full flex items-center justify-center text-accent font-bold">م</div>
-            <div class="text-right">
-              <p class="font-bold text-sm">م. سعود الخالدي</p>
-              <p class="text-xs opacity-70">مكتب هندسي - الرياض</p>
-            </div>
-          </div>
-        </div>
+
       </div>
     </div>
 
