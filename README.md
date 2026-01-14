@@ -4,7 +4,7 @@
 
 An AI-powered floor plan auditor that checks architectural drawings for compliance with the Saudi Building Code (SBC 1101).
 
-## 🏗️ Project Structure
+## Project Structure
 
 ```
 FinalProjectTQ/
@@ -71,7 +71,7 @@ FinalProjectTQ/
 └── README.md                  # This file
 ```
 
-## 🚀 Quick Start
+## Quick Start
 
 ### Backend (from root directory - legacy mode)
 ```bash
@@ -96,14 +96,14 @@ npm run dev      # Development
 npm run build    # Production build
 ```
 
-## 🔑 Features
+## Features
 
 - **AI Floor Plan Analysis**: Detects rooms and checks compliance with SBC 1101
 - **User Authentication**: JWT-based login/register with per-user project history
 - **Real-time Chat**: AI assistant for building code questions
 - **Responsive UI**: Modern Arabic RTL interface
 
-## 🎨 Color Scheme
+## Color Scheme
 
 | Color | Hex | Usage |
 |-------|-----|-------|
@@ -111,7 +111,7 @@ npm run build    # Production build
 | Secondary | `#334155` | Text |
 | Accent | `#F59E0B` | Highlights |
 
-## 📝 API Endpoints
+## API Endpoints
 
 ### Authentication
 - `POST /api/register` - Create account
@@ -128,6 +128,6 @@ npm run build    # Production build
 - `GET /api/analysis/{task_id}` - Get analysis status
 - `POST /api/chat` - Chat with AI
 
-## 📄 License
+## License
 
 © 2026 Emad (عماد) - All rights reserved.
