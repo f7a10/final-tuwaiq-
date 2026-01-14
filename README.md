@@ -1,6 +1,5 @@
 # عماد (Emad) - AI Floor Plan Auditor
 
-![Emad Logo](https://via.placeholder.com/150?text=عماد)
 
 An AI-powered floor plan auditor that checks architectural drawings for compliance with the Saudi Building Code (SBC 1101).
 
