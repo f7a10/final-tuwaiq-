@@ -14,10 +14,509 @@
   <title>عماد | المدقق المعماري الذكي</title>
   <script type="module" crossorigin src="/assets/index-CGHkFDzy.js"></script>
   <link rel="stylesheet" crossorigin href="/assets/index-CBmv21n6.css">
+  
+  <!-- Enhanced Styles -->
+  <style>
+    /* ==========================================
+       FIX 1: Working Scrollbar for Smart Advisor
+       ========================================== */
+    /* Target the sidebar flex container */
+    .w-\[450px\] {
+      display: flex !important;
+      flex-direction: column !important;
+      height: calc(100vh - 64px) !important;
+      max-height: calc(100vh - 64px) !important;
+    }
+    
+    /* Target the chat/report content area - make it scrollable with fixed height */
+    .w-\[450px\] > div:nth-child(2) {
+      flex: 1 !important;
+      min-height: 0 !important; /* Critical for flex overflow */
+      max-height: calc(100vh - 130px) !important;
+      overflow-y: auto !important;
+    }
+    
+    /* Visible scrollbar styling */
+    .overflow-y-auto,
+    [class*="overflow-y-auto"],
+    .w-\[450px\] > div:nth-child(2) {
+      scrollbar-width: thin !important;
+      scrollbar-color: #94a3b8 #e2e8f0 !important;
+    }
+    .overflow-y-auto::-webkit-scrollbar,
+    [class*="overflow-y-auto"]::-webkit-scrollbar,
+    .w-\[450px\] > div:nth-child(2)::-webkit-scrollbar {
+      width: 10px !important;
+      display: block !important;
+    }
+    .overflow-y-auto::-webkit-scrollbar-track,
+    [class*="overflow-y-auto"]::-webkit-scrollbar-track,
+    .w-\[450px\] > div:nth-child(2)::-webkit-scrollbar-track {
+      background: #e2e8f0 !important;
+      border-radius: 5px !important;
+    }
+    .overflow-y-auto::-webkit-scrollbar-thumb,
+    [class*="overflow-y-auto"]::-webkit-scrollbar-thumb,
+    .w-\[450px\] > div:nth-child(2)::-webkit-scrollbar-thumb {
+      background: #94a3b8 !important;
+      border-radius: 5px !important;
+      border: 2px solid #e2e8f0 !important;
+    }
+    .overflow-y-auto::-webkit-scrollbar-thumb:hover,
+    [class*="overflow-y-auto"]::-webkit-scrollbar-thumb:hover,
+    .w-\[450px\] > div:nth-child(2)::-webkit-scrollbar-thumb:hover {
+      background: #64748b !important;
+    }
+    
+    /* ==========================================
+       Edit Button & Modal Styling
+       ========================================== */
+    .emad-edit-btn {
+      background: #3b82f6 !important;
+      color: white !important;
+      border: none !important;
+      padding: 4px 10px !important;
+      border-radius: 6px !important;
+      font-size: 11px !important;
+      font-weight: bold !important;
+      cursor: pointer !important;
+      display: inline-flex !important;
+      align-items: center !important;
+      gap: 4px !important;
+      transition: all 0.2s !important;
+      font-family: 'Cairo', sans-serif !important;
+      margin-left: 8px !important;
+    }
+    .emad-edit-btn:hover {
+      background: #2563eb !important;
+      transform: scale(1.05) !important;
+    }
+    
+    .emad-edit-modal {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: rgba(0,0,0,0.6);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 10000;
+      font-family: 'Cairo', sans-serif;
+      backdrop-filter: blur(4px);
+    }
+    .emad-edit-modal-content {
+      background: white;
+      border-radius: 16px;
+      padding: 24px;
+      width: 480px;
+      max-width: 95%;
+      max-height: 90vh;
+      overflow-y: auto;
+      box-shadow: 0 25px 50px -12px rgba(0,0,0,0.25);
+    }
+    .emad-edit-modal input, .emad-edit-modal select {
+      width: 100%;
+      padding: 10px 12px;
+      border: 1px solid #d1d5db;
+      border-radius: 8px;
+      margin-bottom: 12px;
+      font-family: 'Cairo', sans-serif;
+      font-size: 14px;
+    }
+    .emad-edit-modal-buttons {
+      display: flex;
+      gap: 10px;
+      justify-content: flex-end;
+      margin-top: 16px;
+    }
+    .emad-save-btn {
+      background: #10b981;
+      color: white;
+      border: none;
+      padding: 10px 20px;
+      border-radius: 8px;
+      font-weight: bold;
+      cursor: pointer;
+      font-family: 'Cairo', sans-serif;
+    }
+    .emad-cancel-btn {
+      background: #6b7280;
+      color: white;
+      border: none;
+      padding: 10px 20px;
+      border-radius: 8px;
+      font-weight: bold;
+      cursor: pointer;
+      font-family: 'Cairo', sans-serif;
+    }
+    .emad-ai-btn {
+      background: linear-gradient(135deg, #8b5cf6, #6366f1);
+      color: white;
+      border: none;
+      padding: 10px 20px;
+      border-radius: 8px;
+      font-weight: bold;
+      cursor: pointer;
+      font-family: 'Cairo', sans-serif;
+    }
+    .emad-validation-result {
+      padding: 12px;
+      border-radius: 8px;
+      margin-top: 12px;
+      font-size: 13px;
+    }
+    .emad-validation-ok {
+      background: #d1fae5;
+      border: 1px solid #10b981;
+      color: #065f46;
+    }
+    .emad-validation-fail {
+      background: #fee2e2;
+      border: 1px solid #ef4444;
+      color: #991b1b;
+    }
+    .emad-ai-suggestion {
+      background: linear-gradient(135deg, #ede9fe, #e0e7ff);
+      border: 1px solid #8b5cf6;
+      color: #5b21b6;
+    }
+  </style>
 </head>
 
 <body>
   <div id="app"></div>
+  
+  <script>
+    (function() {
+      // ==========================================
+      // Global State
+      // ==========================================
+      let currentProjectId = null;
+      let currentTaskId = null;
+      
+      // Extract task ID from URL
+      function getTaskId() {
+        const path = window.location.pathname;
+        const match = path.match(/\/dashboard\/([a-f0-9-]+)/);
+        return match ? match[1] : null;
+      }
+
+      // ==========================================
+      // 1. Generative CAD Button (Fixed Position)
+      // ==========================================
+      function injectCadButton() {
+        if (document.getElementById('nav-gen-cad')) return;
+
+        const btn = document.createElement('a');
+        btn.id = 'nav-gen-cad';
+        btn.href = '/generator';
+        btn.style.cssText = `
+          background-color: #fbbf24;
+          color: #000;
+          display: inline-flex;
+          align-items: center;
+          justify-content: center;
+          gap: 0.5rem;
+          text-decoration: none;
+          padding: 0.75rem 1.5rem;
+          border-radius: 0.5rem;
+          font-weight: bold;
+          cursor: pointer;
+          box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+          position: fixed;
+          bottom: 2rem;
+          left: 2rem;
+          z-index: 9999;
+          font-family: 'Cairo', sans-serif;
+        `;
+        btn.innerHTML = '<i class="fa-solid fa-pencil-ruler"></i> <span>تعديل المخطط</span>';
+        document.body.appendChild(btn);
+      }
+
+      // ==========================================
+      // 2. Add Edit Buttons to Room Cards
+      // ==========================================
+      function injectEditButtons() {
+        const roomCards = document.querySelectorAll('[id^="card-"]');
+        
+        roomCards.forEach(card => {
+          if (card.querySelector('.emad-edit-btn')) return;
+          
+          const header = card.querySelector('.flex.justify-between');
+          if (!header) return;
+          
+          const roomId = card.id.replace('card-', '');
+          
+          const editBtn = document.createElement('button');
+          editBtn.className = 'emad-edit-btn';
+          editBtn.innerHTML = '<i class="fas fa-pencil"></i> تعديل';
+          editBtn.onclick = function(e) {
+            e.stopPropagation();
+            e.preventDefault();
+            currentTaskId = getTaskId();
+            openEditModal(roomId, card);
+          };
+          
+          const nameDiv = header.querySelector('div');
+          if (nameDiv) {
+            nameDiv.appendChild(editBtn);
+          }
+        });
+      }
+
+      // ==========================================
+      // 3. Edit Modal with AI Suggestions
+      // ==========================================
+      function openEditModal(roomId, card) {
+        const typeEl = card.querySelector('h4');
+        const metricsEls = card.querySelectorAll('.font-bold.text-gray-800');
+        
+        let currentType = typeEl ? typeEl.textContent.trim() : 'غرفة نوم';
+        let currentArea = 10, currentMinDim = 3;
+        
+        if (metricsEls.length >= 2) {
+          currentArea = parseFloat(metricsEls[0].textContent) || 10;
+          currentMinDim = parseFloat(metricsEls[1].textContent) || 3;
+        }
+        
+        const typeMap = {
+          'غرفة نوم': 'Bedroom',
+          'مطبخ': 'Kitchen',
+          'دورة مياه': 'Bathroom',
+          'غرفة معيشة': 'Living Room',
+          'مجلس': 'Majlis',
+          'غرفة طعام': 'Dining Room'
+        };
+        let englishType = typeMap[currentType] || 'Bedroom';
+        
+        let estWidth = Math.sqrt(currentArea).toFixed(1);
+        let estLength = Math.sqrt(currentArea).toFixed(1);
+        
+        const modal = document.createElement('div');
+        modal.className = 'emad-edit-modal';
+        modal.id = 'emad-edit-modal';
+        modal.innerHTML = `
+          <div class="emad-edit-modal-content" dir="rtl">
+            <h3 style="font-size: 18px; font-weight: bold; margin-bottom: 16px; color: #1f2937;">
+              <i class="fas fa-edit" style="color: #3b82f6; margin-left: 8px;"></i>
+              تعديل الغرفة
+            </h3>
+            
+            <label style="display: block; font-size: 13px; color: #6b7280; margin-bottom: 4px;">نوع الغرفة</label>
+            <select id="edit-room-type">
+              <option value="Bedroom" ${englishType === 'Bedroom' ? 'selected' : ''}>غرفة نوم</option>
+              <option value="Living Room" ${englishType === 'Living Room' ? 'selected' : ''}>غرفة معيشة</option>
+              <option value="Kitchen" ${englishType === 'Kitchen' ? 'selected' : ''}>مطبخ</option>
+              <option value="Bathroom" ${englishType === 'Bathroom' ? 'selected' : ''}>دورة مياه</option>
+              <option value="Majlis" ${englishType === 'Majlis' ? 'selected' : ''}>مجلس</option>
+              <option value="Dining Room" ${englishType === 'Dining Room' ? 'selected' : ''}>غرفة طعام</option>
+            </select>
+            
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
+              <div>
+                <label style="display: block; font-size: 13px; color: #6b7280; margin-bottom: 4px;">العرض (متر)</label>
+                <input type="number" id="edit-room-width" value="${estWidth}" step="0.5" min="1">
+              </div>
+              <div>
+                <label style="display: block; font-size: 13px; color: #6b7280; margin-bottom: 4px;">الطول (متر)</label>
+                <input type="number" id="edit-room-length" value="${estLength}" step="0.5" min="1">
+              </div>
+            </div>
+            
+            <div style="background: #f3f4f6; padding: 10px; border-radius: 8px; margin-top: 12px;">
+              <span style="font-size: 12px; color: #6b7280;">المساحة:</span>
+              <span id="calc-area" style="font-weight: bold; color: #1f2937;"> ${currentArea} م²</span>
+            </div>
+            
+            <div id="ai-suggestion-area"></div>
+            <div id="validation-result"></div>
+            
+            <div class="emad-edit-modal-buttons" style="flex-wrap: wrap;">
+              <button class="emad-ai-btn" onclick="getAISuggestion('${roomId}')" style="flex: 1;">
+                <i class="fas fa-magic"></i> اقتراح ذكي (AI)
+              </button>
+              <button class="emad-cancel-btn" onclick="document.getElementById('emad-edit-modal').remove()">إلغاء</button>
+              <button class="emad-save-btn" onclick="validateAndSave('${roomId}')">
+                <i class="fas fa-check"></i> تحقق وإعادة التحليل
+              </button>
+            </div>
+          </div>
+        `;
+        
+        document.body.appendChild(modal);
+        
+        const widthInput = document.getElementById('edit-room-width');
+        const lengthInput = document.getElementById('edit-room-length');
+        const areaSpan = document.getElementById('calc-area');
+        
+        function updateArea() {
+          const w = parseFloat(widthInput.value) || 0;
+          const l = parseFloat(lengthInput.value) || 0;
+          areaSpan.textContent = ' ' + (w * l).toFixed(1) + ' م²';
+        }
+        
+        widthInput.addEventListener('input', updateArea);
+        lengthInput.addEventListener('input', updateArea);
+        
+        modal.addEventListener('click', function(e) {
+          if (e.target === modal) modal.remove();
+        });
+      }
+
+      // ==========================================
+      // 4. AI Smart Suggestion (LLM-based)
+      // ==========================================
+      window.getAISuggestion = async function(roomId) {
+        const type = document.getElementById('edit-room-type').value;
+        const width = parseFloat(document.getElementById('edit-room-width').value);
+        const length = parseFloat(document.getElementById('edit-room-length').value);
+        const suggestionDiv = document.getElementById('ai-suggestion-area');
+        
+        suggestionDiv.innerHTML = '<div style="text-align: center; padding: 16px; color: #8b5cf6;"><i class="fas fa-robot fa-pulse"></i> الذكاء الاصطناعي يحلل التصميم...</div>';
+        
+        try {
+          const token = localStorage.getItem('auth_token');
+          const headers = { 'Content-Type': 'application/json' };
+          if (token) headers['Authorization'] = 'Bearer ' + token;
+          
+          const response = await fetch('/api/smart-correct', {
+            method: 'POST',
+            headers: headers,
+            body: JSON.stringify({ type, width, length })
+          });
+          
+          if (response.ok) {
+            const result = await response.json();
+            
+            suggestionDiv.innerHTML = `
+              <div class="emad-validation-result emad-ai-suggestion">
+                <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 10px;">
+                  <i class="fas fa-lightbulb" style="font-size: 20px;"></i>
+                  <strong>اقتراح الذكاء الاصطناعي</strong>
+                </div>
+                <div style="font-size: 13px; margin-bottom: 10px;">${result.suggestion}</div>
+                ${result.recommended_width && result.recommended_length ? `
+                  <div style="display: flex; gap: 10px; margin-top: 10px;">
+                    <button onclick="applyAISuggestion(${result.recommended_width}, ${result.recommended_length})" 
+                      style="flex: 1; background: #8b5cf6; color: white; border: none; padding: 8px 16px; border-radius: 6px; font-weight: bold; cursor: pointer; font-family: 'Cairo', sans-serif;">
+                      <i class="fas fa-check"></i> تطبيق: ${result.recommended_width}م × ${result.recommended_length}م
+                    </button>
+                  </div>
+                ` : ''}
+                ${result.rag_source ? `<div style="font-size: 10px; margin-top: 8px; opacity: 0.8;"><i class="fas fa-book"></i> المصدر: ${result.rag_source}</div>` : ''}
+              </div>
+            `;
+          } else {
+            suggestionDiv.innerHTML = '<div class="emad-validation-result emad-validation-fail"><i class="fas fa-times-circle"></i> فشل الحصول على اقتراح</div>';
+          }
+        } catch (e) {
+          console.error(e);
+          suggestionDiv.innerHTML = '<div class="emad-validation-result emad-validation-fail"><i class="fas fa-wifi"></i> خطأ في الاتصال</div>';
+        }
+      };
+      
+      window.applyAISuggestion = function(width, length) {
+        document.getElementById('edit-room-width').value = width;
+        document.getElementById('edit-room-length').value = length;
+        document.getElementById('calc-area').textContent = ' ' + (width * length).toFixed(1) + ' م²';
+        document.getElementById('ai-suggestion-area').innerHTML = '<div style="text-align: center; padding: 8px; color: #10b981;"><i class="fas fa-check-circle"></i> تم تطبيق الاقتراح</div>';
+      };
+
+      // ==========================================
+      // 5. Validate and Full Re-analysis via RAG
+      // ==========================================
+      window.validateAndSave = async function(roomId) {
+        const type = document.getElementById('edit-room-type').value;
+        const width = parseFloat(document.getElementById('edit-room-width').value);
+        const length = parseFloat(document.getElementById('edit-room-length').value);
+        const resultDiv = document.getElementById('validation-result');
+        const saveBtn = document.querySelector('.emad-save-btn');
+        
+        saveBtn.disabled = true;
+        saveBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> جاري التحليل...';
+        resultDiv.innerHTML = '<div style="text-align: center; padding: 12px; color: #6b7280;"><i class="fas fa-cog fa-spin"></i> جاري إعادة التحليل عبر RAG...</div>';
+        
+        try {
+          const token = localStorage.getItem('auth_token');
+          const headers = { 'Content-Type': 'application/json' };
+          if (token) headers['Authorization'] = 'Bearer ' + token;
+          
+          // Step 1: Validate room
+          const validateResponse = await fetch('/api/validate-room', {
+            method: 'POST',
+            headers: headers,
+            body: JSON.stringify({ type, width, length })
+          });
+          
+          if (validateResponse.ok) {
+            const result = await validateResponse.json();
+            
+            if (result.valid) {
+              resultDiv.innerHTML = `
+                <div class="emad-validation-result emad-validation-ok">
+                  <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 8px;">
+                    <i class="fas fa-check-circle" style="font-size: 20px;"></i>
+                    <strong>مطابق لكود البناء السعودي!</strong>
+                  </div>
+                  <div style="font-size: 12px;">${result.message}</div>
+                  <div style="margin-top: 12px; padding-top: 12px; border-top: 1px solid #10b981;">
+                    <button onclick="closeModalAndRefresh()" style="width: 100%; background: #10b981; color: white; border: none; padding: 10px; border-radius: 8px; font-weight: bold; cursor: pointer; font-family: 'Cairo', sans-serif;">
+                      <i class="fas fa-sync"></i> تحديث التقرير
+                    </button>
+                  </div>
+                </div>
+              `;
+            } else {
+              resultDiv.innerHTML = `
+                <div class="emad-validation-result emad-validation-fail">
+                  <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 8px;">
+                    <i class="fas fa-exclamation-triangle" style="font-size: 20px;"></i>
+                    <strong>غير مطابق للكود</strong>
+                  </div>
+                  <div style="font-size: 12px; margin-bottom: 8px;">${result.message}</div>
+                  <div style="font-size: 11px; padding-top: 8px; border-top: 1px solid #fca5a5;">
+                    <i class="fas fa-info-circle"></i>
+                    الحد الأدنى للمساحة: <strong>${result.required_area} م²</strong> | 
+                    أقل بُعد: <strong>${result.required_min_dim} م</strong>
+                  </div>
+                  <div style="margin-top: 12px; font-size: 12px; color: #9ca3af;">
+                    استخدم زر "اقتراح ذكي" للحصول على أفضل الأبعاد المقترحة
+                  </div>
+                </div>
+              `;
+            }
+          } else {
+            resultDiv.innerHTML = '<div class="emad-validation-result emad-validation-fail"><i class="fas fa-times-circle"></i> فشل التحقق من الخادم</div>';
+          }
+        } catch (e) {
+          console.error(e);
+          resultDiv.innerHTML = '<div class="emad-validation-result emad-validation-fail"><i class="fas fa-wifi"></i> خطأ في الاتصال بالخادم</div>';
+        } finally {
+          saveBtn.disabled = false;
+          saveBtn.innerHTML = '<i class="fas fa-check"></i> تحقق وإعادة التحليل';
+        }
+      };
+      
+      window.closeModalAndRefresh = function() {
+        document.getElementById('emad-edit-modal').remove();
+        // Trigger page refresh to show updated data
+        window.location.reload();
+      };
+
+      // ==========================================
+      // Run injections periodically
+      // ==========================================
+      function runInjections() {
+        injectCadButton();
+        injectEditButtons();
+      }
+      
+      runInjections();
+      setInterval(runInjections, 500);
+    })();
+  </script>
 </body>
 
 </html>

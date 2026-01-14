@@ -16,6 +16,6 @@ from backend.app.main import app
 if __name__ == "__main__":
     import uvicorn
     print("=" * 50)
-    print("🏗️  Emad (عماد) - AI Floor Plan Auditor")
+    print("Emad - AI Floor Plan Auditor")
     print("=" * 50)
     uvicorn.run(app, host="0.0.0.0", port=8005)

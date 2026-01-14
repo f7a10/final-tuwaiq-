@@ -12,10 +12,36 @@ from backend.app.auth.schemas import (
     UserCreate, UserLogin, UserResponse, TokenResponse, UserListResponse
 )
 
-router = APIRouter(prefix="/api", tags=["auth"])
+router = APIRouter(tags=["auth"])
 
 
-@router.post("/register", response_model=dict)
+# ==========================================
+# Legacy Routes (Frontend Compatibility)
+# ==========================================
+
+@router.post("/api/login", response_model=TokenResponse)
+async def login_legacy(credentials: UserLogin, db: Session = Depends(get_db)):
+    """Legacy login endpoint for frontend compatibility."""
+    return await login_user(credentials, db)
+
+
+@router.post("/api/register", response_model=dict)
+async def register_legacy(user_data: UserCreate, db: Session = Depends(get_db)):
+    """Legacy register endpoint for frontend compatibility."""
+    return await register_user(user_data, db)
+
+
+@router.get("/api/me")
+async def me_legacy(user: User = Depends(require_auth)):
+    """Legacy me endpoint for frontend compatibility."""
+    return await get_current_user_info(user)
+
+
+# ==========================================
+# Main Auth Routes
+# ==========================================
+
+@router.post("/api/auth/register", response_model=dict)
 async def register_user(user_data: UserCreate, db: Session = Depends(get_db)):
     """Register a new user."""
     try:
@@ -54,7 +80,7 @@ async def register_user(user_data: UserCreate, db: Session = Depends(get_db)):
         )
 
 
-@router.post("/login", response_model=TokenResponse)
+@router.post("/api/auth/login", response_model=TokenResponse)
 async def login_user(credentials: UserLogin, db: Session = Depends(get_db)):
     """Login and get JWT token."""
     try:
@@ -107,7 +133,7 @@ async def login_user(credentials: UserLogin, db: Session = Depends(get_db)):
         )
 
 
-@router.get("/me")
+@router.get("/api/auth/me")
 async def get_current_user_info(user: User = Depends(require_auth)):
     """Get current logged-in user info."""
     return UserResponse(
@@ -122,7 +148,7 @@ async def get_current_user_info(user: User = Depends(require_auth)):
     )
 
 
-@router.get("/users", response_model=list[UserListResponse])
+@router.get("/api/auth/users", response_model=list[UserListResponse])
 async def get_all_users(
     admin: User = Depends(require_admin),
     db: Session = Depends(get_db)
@@ -143,7 +169,7 @@ async def get_all_users(
     ]
 
 
-@router.delete("/users/{user_id}")
+@router.delete("/api/auth/users/{user_id}")
 async def delete_user(
     user_id: int,
     admin: User = Depends(require_admin),

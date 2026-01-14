@@ -16,16 +16,52 @@
       </div>
       
       <div class="flex gap-3">
+        <!-- Generative CAD Button -->
+        <button 
+          @click="showGeneratorModal = true"
+          class="px-4 py-2 text-sm font-bold text-white bg-accent text-primary rounded-lg hover:bg-accent/90 transition flex items-center gap-2 shadow-sm"
+        >
+          <i class="fas fa-magic"></i>
+          <span>توليد مخطط جديد</span>
+        </button>
+
+        <!-- Edit Plan Button - New Integration -->
+        <button 
+          @click="openEditPlan"
+          class="px-4 py-2 text-sm font-bold text-white bg-gradient-to-r from-purple-500 to-indigo-500 rounded-lg hover:opacity-90 transition flex items-center gap-2 shadow-sm"
+        >
+          <i class="fas fa-pencil-ruler"></i>
+          <span>تعديل المخطط</span>
+        </button>
+
+        <!-- New Download DXF Dropdown -->
+        <div class="relative group">
+          <button 
+            class="px-4 py-2 text-sm font-bold text-white bg-primary rounded-lg hover:bg-primary/90 transition flex items-center gap-2"
+          >
+            <i class="fas fa-drafting-compass"></i>
+            <span>تحميل CAD (DXF)</span>
+            <i class="fas fa-chevron-down text-xs mr-1"></i>
+          </button>
+          
+          <div class="absolute top-full left-0 mt-2 w-56 bg-white rounded-xl shadow-xl border border-gray-100 p-1 hidden group-hover:block z-50">
+             <button @click="downloadDxf('original')" class="w-full text-right px-4 py-3 hover:bg-gray-50 rounded-lg text-sm text-gray-700 flex items-center justify-between">
+                <span>المخطط الأصلي (Original)</span>
+                <i class="fas fa-file-invoice text-gray-400"></i>
+             </button>
+             <button @click="downloadDxf('corrected')" class="w-full text-right px-4 py-3 hover:bg-gray-50 rounded-lg text-sm text-gray-700 flex items-center justify-between border-t border-gray-50">
+                <span>المخطط المصحح (Corrected)</span>
+                <i class="fas fa-magic text-accent"></i>
+             </button>
+          </div>
+        </div>
+
         <button 
           @click="downloadImage"
           class="px-4 py-2 text-sm font-bold text-primary bg-secondary/10 rounded-lg hover:bg-secondary/20 transition flex items-center gap-2"
         >
           <i class="fas fa-download"></i>
-          <span>تحميل المخطط</span>
-        </button>
-        <button class="px-4 py-2 text-sm font-bold text-primary bg-secondary/10 rounded-lg hover:bg-secondary/20 transition flex items-center gap-2">
-          <i class="fas fa-file-pdf"></i>
-          <span>تصدير التقرير</span>
+          <span>تحميل المخطط (JPG)</span>
         </button>
       </div>
     </header>
@@ -225,6 +261,69 @@
       </div>
 
     </div>
+    <!-- Generative CAD Modal -->
+    <div v-if="showGeneratorModal" class="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4 backdrop-blur-sm">
+      <div class="bg-white rounded-2xl shadow-2xl w-full max-w-2xl overflow-hidden animate-fade-in" dir="rtl">
+        <header class="bg-primary text-white p-4 flex justify-between items-center">
+          <h3 class="font-bold text-lg flex items-center gap-2">
+            <i class="fas fa-magic"></i>
+            مولد المخططات الآلي (Generative CAD)
+          </h3>
+          <button @click="showGeneratorModal = false" class="text-white/70 hover:text-white transition">
+            <i class="fas fa-times text-xl"></i>
+          </button>
+        </header>
+        
+        <div class="p-6 max-h-[70vh] overflow-y-auto">
+          <p class="text-gray-600 mb-4 text-sm">قم بإضافة الغرف المطلوبة ومقاساتها، وسيقوم النظام بإنشاء ملف CAD متكامل لك تلقائياً.</p>
+          
+          <div class="space-y-3 mb-6">
+            <div v-for="(room, idx) in generatorRooms" :key="idx" class="flex gap-2 items-end bg-gray-50 p-3 rounded-xl border border-gray-200">
+              <div class="flex-1">
+                <label class="block text-xs text-gray-500 mb-1">نوع الغرفة</label>
+                <select v-model="room.type" class="w-full p-2 rounded-lg border border-gray-300 text-sm">
+                  <option value="Bedroom">غرفة نوم</option>
+                  <option value="Living Room">غرفة معيشة</option>
+                  <option value="Kitchen">مطبخ</option>
+                  <option value="Bathroom">دورة مياه</option>
+                  <option value="Majlis">مجلس</option>
+                  <option value="Dining Room">غرفة طعام</option>
+                </select>
+              </div>
+              <div class="w-24">
+                <label class="block text-xs text-gray-500 mb-1">العرض (م)</label>
+                <input type="number" v-model="room.width" class="w-full p-2 rounded-lg border border-gray-300 text-sm text-center" step="0.5">
+              </div>
+              <div class="w-24">
+                <label class="block text-xs text-gray-500 mb-1">الطول (م)</label>
+                <input type="number" v-model="room.length" class="w-full p-2 rounded-lg border border-gray-300 text-sm text-center" step="0.5">
+              </div>
+              <button @click="removeGenRoom(idx)" class="p-2 text-red-500 hover:bg-red-50 rounded-lg transition" title="حذف الغرفة">
+                <i class="fas fa-trash"></i>
+              </button>
+            </div>
+            
+            <button @click="addGenRoom" class="w-full py-3 border-2 border-dashed border-gray-300 rounded-xl text-gray-500 hover:border-primary hover:text-primary transition flex items-center justify-center gap-2">
+              <i class="fas fa-plus"></i>
+              إضافة غرفة أخرى
+            </button>
+          </div>
+        </div>
+        
+        <footer class="bg-gray-50 p-4 border-t flex justify-end gap-3">
+          <button @click="showGeneratorModal = false" class="px-5 py-2 text-gray-600 font-bold hover:bg-gray-200 rounded-lg transition">إلغاء</button>
+          <button 
+            @click="generateDxfLayout" 
+            :disabled="isGenerating"
+            class="px-6 py-2 bg-accent text-primary font-bold rounded-lg shadow-lg hover:shadow-xl hover:bg-yellow-400 transition flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            <span v-if="isGenerating" class="animate-spin">⚙️</span>
+            <span>{{ isGenerating ? 'جاري التوليد...' : 'إنشاء المخطط (DXF)' }}</span>
+          </button>
+        </footer>
+      </div>
+    </div>
+
   </div>
 </template>
 
@@ -247,6 +346,14 @@ const newMessage = ref('');
 const isTyping = ref(false);
 const imageLoadError = ref(false);
 const showingFixId = ref(null);
+
+const showGeneratorModal = ref(false);
+const isGenerating = ref(false);
+const generatorRooms = ref([
+    { type: 'Majlis', width: 5, length: 7 },
+    { type: 'Dining Room', width: 4, length: 5 },
+    { type: 'Kitchen', width: 4, length: 4 }
+]);
 
 // Arabic Translations
 const roomTypeMap = {
@@ -455,6 +562,86 @@ const downloadImage = () => {
     if (!taskId.value) return;
     const url = `/api/download/${taskId.value}`;
     window.open(url, '_blank');
+};
+
+const downloadDxf = (mode) => {
+    if (!taskId.value) return;
+    // Use the new task-based endpoint for robustness
+    const url = `/api/projects/dxf/${taskId.value}?mode=${mode}`;
+    window.open(url, '_blank');
+};
+
+// Generative CAD Functions
+const addGenRoom = () => {
+    generatorRooms.value.push({ type: 'Bedroom', width: 4, length: 5 });
+};
+
+const removeGenRoom = (idx) => {
+    generatorRooms.value.splice(idx, 1);
+};
+
+const generateDxfLayout = async () => {
+    if (generatorRooms.value.length === 0) return;
+    isGenerating.value = true;
+    
+    try {
+        const response = await fetch('/api/generate-dxf', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ rooms: generatorRooms.value })
+        });
+        
+        if (response.ok) {
+            // Convert response to blob and download
+            const blob = await response.blob();
+            const url = window.URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `Emad_Generated_Plan_${new Date().getTime()}.dxf`;
+            document.body.appendChild(a);
+            a.click();
+            window.URL.revokeObjectURL(url);
+            showGeneratorModal.value = false;
+        } else {
+            alert('حدث خطأ أثناء إنشاء المخطط');
+        }
+    } catch (e) {
+        console.error(e);
+        alert('فشل الاتصال بالخادم');
+    } finally {
+        isGenerating.value = false;
+    }
+};
+
+// Open Edit Plan (Generator) with current rooms data
+const openEditPlan = () => {
+    // Transform analysisData rooms to generator format and save to localStorage
+    if (analysisData.value && analysisData.value.rooms && analysisData.value.rooms.length > 0) {
+        const roomsForEdit = analysisData.value.rooms.map((room, index) => {
+            // Extract dimensions from metrics (backend provides width and height in meters)
+            const width = room.metrics?.width || room.metrics?.minDim || 4;
+            const height = room.metrics?.height || 
+                          (room.metrics?.area && room.metrics?.minDim 
+                            ? Math.round((room.metrics.area / room.metrics.minDim) * 10) / 10 
+                            : 5);
+            
+            return {
+                type: room.type || room.normalizedType || 'Bedroom',
+                width: Math.round(width * 10) / 10,  // Round to 1 decimal
+                length: Math.round(height * 10) / 10, // Round to 1 decimal
+                originalId: room.id,
+                isCompliant: room.isCompliant,
+                violation: room.violation,
+                metrics: room.metrics  // Keep original metrics for reference
+            };
+        });
+        
+        localStorage.setItem('emad_edit_rooms', JSON.stringify(roomsForEdit));
+        console.log('Rooms for edit:', roomsForEdit);
+    }
+    
+    // Navigate to generator page
+    window.location.href = '/generator';
 };
 </script>
 

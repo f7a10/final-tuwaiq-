@@ -94,7 +94,7 @@ def calculate_dynamic_scale(structure_predictions, default_scale=100.0):
     avg_door_pixel_width = sum(doors) / len(doors)
     new_scale = avg_door_pixel_width / 0.9  # Standard door width ~0.9m
     
-    print(f"📏 Auto-Calibration: Found {len(doors)} doors. Scale: {new_scale:.2f} px/m")
+    print(f"Auto-Calibration: Found {len(doors)} doors. Scale: {new_scale:.2f} px/m")
     return new_scale
 
 
@@ -187,7 +187,7 @@ class SmartArchitect:
     """Full analysis class for floor plan processing with CAD Compliance RAG."""
     
     def __init__(self):
-        print("🚀 Initializing SmartArchitect...")
+        print("Initializing SmartArchitect...")
         self.ai = OpenAI(
             base_url="https://openrouter.ai/api/v1",
             api_key=OPENROUTER_API_KEY
@@ -196,7 +196,7 @@ class SmartArchitect:
             api_url="https://detect.roboflow.com",
             api_key=ROBOFLOW_API_KEY
         )
-        print("✓ SmartArchitect initialized successfully.")
+        print("SmartArchitect initialized successfully.")
 
     def encode_image(self, cv2_img):
         """Convert OpenCV image to base64."""
@@ -240,7 +240,7 @@ Output ONLY the room type name, nothing else."""
 
         for model_id in vision_models:
             try:
-                print(f"    🤖 Trying VLM: {model_id}...")
+                print(f"    Trying VLM: {model_id}...")
                 
                 # Add delay for usually rate-limited free models
                 if ":free" in model_id:
@@ -260,27 +260,27 @@ Output ONLY the room type name, nothing else."""
                     max_tokens=60
                 )
                 result = response.choices[0].message.content.strip()
-                print(f"    ✓ {model_id} Identified: {result}")
+                print(f"    {model_id} Identified: {result}")
                 
                 # Specific validation for empty or garbage results
                 if not result or len(result) > 50 or "error" in result.lower():
-                    print(f"    ⚠️ Invalid result from {model_id}: {result}")
+                    print(f"    Invalid result from {model_id}: {result}")
                     continue
                     
                 return result
                 
             except Exception as e:
-                print(f"    ⚠️ {model_id} Error: {e}")
+                print(f"    {model_id} Error: {e}")
                 continue
 
-        print("    ❌ All VLM models failed")
+        print("    All VLM models failed")
         return "Unknown"
 
     def analyze(self, image_path: str, task_id: str = "unknown"):
         """
         Full analysis pipeline with CAD Compliance RAG integration.
         """
-        print(f"📐 Analyzing: {image_path}")
+        print(f"Analyzing: {image_path}")
         
         # Load image
         img = cv2.imread(image_path)
@@ -291,12 +291,12 @@ Output ONLY the room type name, nothing else."""
         visual_result = img.copy()
         
         # Step 1: Detect structures (doors, windows)
-        print("📡 1. Detecting windows and doors (CubiCasa)...")
+        print("1. Detecting windows and doors (CubiCasa)...")
         try:
             structure_result = self.rf.infer(image_path, model_id="cubicasa5k-2-qpmsa/6")
             structure_predictions = structure_result.get('predictions', [])
         except Exception as e:
-            print(f"⚠️ Structure detection failed: {e}")
+            print(f"Structure detection failed: {e}")
             structure_predictions = []
         
         # Step 2: Calculate dynamic scale
@@ -307,26 +307,26 @@ Output ONLY the room type name, nothing else."""
         for item in structure_predictions:
             if "window" in item['class'].lower():
                 windows.append(item)
-        print(f"ℹ️ Found {len(windows)} windows in the floor plan.")
+        print(f"Found {len(windows)} windows in the floor plan.")
         
         # Step 3: Detect rooms
-        print("📡 2. Detecting rooms (Room Segmentation)...")
+        print("2. Detecting rooms (Room Segmentation)...")
         try:
             room_result = self.rf.infer(image_path, model_id="room-detection-6nzte/1")
             room_predictions = room_result.get('predictions', [])
         except Exception as e:
-            print(f"⚠️ Room detection failed: {e}")
+            print(f"Room detection failed: {e}")
             room_predictions = []
         
         if not room_predictions:
-            print("⚠️ No room regions detected!")
+            print("No room regions detected!")
             return {"error": "No rooms detected"}, img
         
         rooms_data = []
         rooms_for_rag = []  # Format for cad_compliance_rag
         
         # Step 4: Process each room
-        print("🧠 3. Analyzing rooms with Grok 3 Vision...")
+        print("3. Analyzing rooms with Grok 3 Vision...")
         for i, room in enumerate(room_predictions):
             rx, ry, rw, rh = room['x'], room['y'], room['width'], room['height']
             x1, y1 = int(rx - rw/2), int(ry - rh/2)
@@ -400,16 +400,16 @@ Output ONLY the room type name, nothing else."""
             })
         
         # Step 5: Run CAD Compliance RAG
-        print("📋 4. Running CAD Compliance RAG analysis...")
+        print("4. Running CAD Compliance RAG analysis...")
         try:
             compliance_result = analyze_plan(
                 project_id=task_id,
                 asset_id="unit_01",
                 rooms=rooms_for_rag
             )
-            print(f"✓ Compliance check complete: {compliance_result['summary']['violations_total']} violations")
+            print(f"Compliance check complete: {compliance_result['summary']['violations_total']} violations")
         except Exception as e:
-            print(f"⚠️ CAD Compliance RAG error: {e}")
+            print(f"CAD Compliance RAG error: {e}")
             compliance_result = {
                 "summary": {"violations_total": 0, "warnings_total": 0},
                 "violations": [],
@@ -490,8 +490,10 @@ Output ONLY the room type name, nothing else."""
             "violations_count": compliance_result["summary"]["violations_total"],
             "warnings_count": compliance_result["summary"]["warnings_total"],
             "compliance_details": compliance_result,
-            "scale_used": pixels_per_meter
+            "scale_used": pixels_per_meter,
+            "image_width": W,
+            "image_height": H
         }
         
-        print(f"✅ Analysis complete: {compliant_rooms}/{total_rooms} rooms compliant ({score}%)")
+        print(f"Analysis complete: {compliant_rooms}/{total_rooms} rooms compliant ({score}%)")
         return result, visual_result

@@ -78,7 +78,7 @@ class Project(Base):
 def init_db():
     """Create all tables in the database."""
     Base.metadata.create_all(bind=engine)
-    print("✓ Database initialized successfully.")
+    print("Database initialized successfully.")
 
 
 def get_db():

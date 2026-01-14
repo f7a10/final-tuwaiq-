@@ -1,0 +1,1370 @@
+<!DOCTYPE html>
+<html dir="rtl" lang="ar">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Emad - تعديل المخطط</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700&display=swap');
+
+        :root {
+            --bg-primary: #f8fafc;
+            --bg-secondary: #ffffff;
+            --bg-glass: rgba(255, 255, 255, 0.7);
+            --text-primary: #1e293b;
+            --text-secondary: #64748b;
+            --border-color: rgba(148, 163, 184, 0.3);
+            --accent-gradient: linear-gradient(135deg, #0f766e 0%, #0d9488 100%);
+            --public-zone: #3b82f6;
+            --private-zone: #10b981;
+            --service-zone: #f59e0b;
+            --compliant: #10b981;
+            --non-compliant: #ef4444;
+            --shadow-glass: 0 8px 32px rgba(0, 0, 0, 0.1);
+        }
+
+        .dark {
+            --bg-primary: #0f172a;
+            --bg-secondary: #1e293b;
+            --bg-glass: rgba(30, 41, 59, 0.8);
+            --text-primary: #f1f5f9;
+            --text-secondary: #94a3b8;
+            --border-color: rgba(148, 163, 184, 0.2);
+            --shadow-glass: 0 8px 32px rgba(0, 0, 0, 0.3);
+        }
+
+        body {
+            font-family: 'Cairo', sans-serif;
+            background: var(--bg-primary);
+            color: var(--text-primary);
+            transition: all 0.3s ease;
+        }
+
+        .glass-card {
+            background: var(--bg-glass);
+            backdrop-filter: blur(20px);
+            border: 1px solid var(--border-color);
+            box-shadow: var(--shadow-glass);
+        }
+
+        .gradient-bg {
+            background: linear-gradient(135deg, #0f766e 0%, #0d9488 50%, #14b8a6 100%);
+        }
+
+        .room-card {
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            background: var(--bg-secondary);
+            border: 1px solid var(--border-color);
+        }
+
+        .room-card:hover {
+            transform: translateY(-4px);
+            box-shadow: 0 20px 40px -15px rgba(0, 0, 0, 0.15);
+        }
+
+        .room-card.compliant {
+            border-right: 4px solid var(--compliant);
+        }
+
+        .room-card.non-compliant {
+            border-right: 4px solid var(--non-compliant);
+        }
+
+        /* Canvas Container */
+        .canvas-container {
+            position: relative;
+            background: var(--bg-secondary);
+            border-radius: 1rem;
+            overflow: hidden;
+        }
+
+        #floorPlanCanvas {
+            cursor: grab;
+            touch-action: none;
+        }
+
+        #floorPlanCanvas:active {
+            cursor: grabbing;
+        }
+
+        /* Scrollbar */
+        .rooms-container {
+            max-height: calc(100vh - 280px);
+            overflow-y: auto;
+            scrollbar-width: thin;
+            scrollbar-color: var(--text-secondary) transparent;
+        }
+
+        .rooms-container::-webkit-scrollbar {
+            width: 6px;
+        }
+
+        .rooms-container::-webkit-scrollbar-track {
+            background: transparent;
+        }
+
+        .rooms-container::-webkit-scrollbar-thumb {
+            background: var(--text-secondary);
+            border-radius: 3px;
+        }
+
+        /* Animations */
+        @keyframes fadeInUp {
+            from {
+                opacity: 0;
+                transform: translateY(20px);
+            }
+
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        @keyframes pulse-soft {
+
+            0%,
+            100% {
+                opacity: 1;
+            }
+
+            50% {
+                opacity: 0.7;
+            }
+        }
+
+        .animate-fadeInUp {
+            animation: fadeInUp 0.4s ease-out forwards;
+        }
+
+        .animate-pulse-soft {
+            animation: pulse-soft 2s infinite;
+        }
+
+        /* Button Styles */
+        .btn-primary {
+            background: var(--accent-gradient);
+            color: white;
+            font-weight: 600;
+            transition: all 0.3s ease;
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 25px -5px rgba(15, 118, 110, 0.4);
+        }
+
+        .btn-glass {
+            background: var(--bg-glass);
+            backdrop-filter: blur(10px);
+            border: 1px solid var(--border-color);
+            color: var(--text-primary);
+            transition: all 0.3s ease;
+        }
+
+        .btn-glass:hover {
+            background: var(--bg-secondary);
+        }
+
+        /* Zone Colors for Canvas */
+        .zone-public {
+            color: var(--public-zone);
+        }
+
+        .zone-private {
+            color: var(--private-zone);
+        }
+
+        .zone-service {
+            color: var(--service-zone);
+        }
+
+        /* Form Inputs */
+        input,
+        select {
+            background: var(--bg-primary);
+            border: 1px solid var(--border-color);
+            color: var(--text-primary);
+            transition: all 0.2s ease;
+        }
+
+        input:focus,
+        select:focus {
+            outline: none;
+            border-color: #0f766e;
+            box-shadow: 0 0 0 3px rgba(15, 118, 110, 0.1);
+        }
+
+        /* Loading Spinner */
+        .loader {
+            border: 3px solid var(--border-color);
+            border-top: 3px solid #0f766e;
+            border-radius: 50%;
+            width: 24px;
+            height: 24px;
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            0% {
+                transform: rotate(0deg);
+            }
+
+            100% {
+                transform: rotate(360deg);
+            }
+        }
+
+        /* AI Suggestions Panel */
+        .ai-panel {
+            background: linear-gradient(135deg, rgba(139, 92, 246, 0.1) 0%, rgba(99, 102, 241, 0.1) 100%);
+            border: 1px solid rgba(139, 92, 246, 0.3);
+        }
+
+        /* Toggle Switch */
+        .toggle-switch {
+            position: relative;
+            width: 48px;
+            height: 24px;
+            background: var(--border-color);
+            border-radius: 12px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .toggle-switch.active {
+            background: #0f766e;
+        }
+
+        .toggle-switch::after {
+            content: '';
+            position: absolute;
+            top: 2px;
+            left: 2px;
+            width: 20px;
+            height: 20px;
+            background: white;
+            border-radius: 50%;
+            transition: all 0.3s ease;
+        }
+
+        .toggle-switch.active::after {
+            left: 26px;
+        }
+
+        /* Responsive */
+        @media (max-width: 1024px) {
+            .canvas-container {
+                order: -1;
+                margin-bottom: 1rem;
+            }
+        }
+    </style>
+</head>
+
+<body class="min-h-screen">
+
+    <!-- Header -->
+    <header class="glass-card sticky top-0 z-50 h-16 flex items-center px-6 justify-between">
+        <div class="flex items-center gap-4">
+            <a href="/"
+                class="text-gray-500 hover:text-teal-600 transition p-2 rounded-lg hover:bg-teal-50 dark:hover:bg-teal-900/20">
+                <i class="fas fa-home text-xl"></i>
+            </a>
+            <div>
+                <h1 class="text-xl font-bold flex items-center gap-2">
+                    <div class="w-8 h-8 gradient-bg rounded-lg flex items-center justify-center">
+                        <i class="fas fa-magic text-white text-sm"></i>
+                    </div>
+                    <span>تعديل المخطط</span>
+                </h1>
+            </div>
+        </div>
+        <div class="flex items-center gap-4">
+            <span class="text-sm text-gray-500 hidden sm:block">
+                <i class="fas fa-info-circle ml-1"></i>
+                اسحب الغرف لترتيبها على المخطط
+            </span>
+            <button onclick="toggleDarkMode()" class="p-2 rounded-lg btn-glass" title="الوضع الليلي">
+                <i id="darkModeIcon" class="fas fa-moon"></i>
+            </button>
+        </div>
+    </header>
+
+    <main class="p-4 lg:p-6 max-w-[1600px] mx-auto">
+
+        <!-- Quick Tips (Collapsible) -->
+        <details class="glass-card rounded-xl mb-6 group">
+            <summary class="p-4 cursor-pointer flex items-center justify-between list-none">
+                <div class="flex items-center gap-3">
+                    <div
+                        class="w-10 h-10 bg-amber-100 dark:bg-amber-900/30 rounded-xl flex items-center justify-center">
+                        <i class="fas fa-lightbulb text-amber-500"></i>
+                    </div>
+                    <span class="font-bold">كيفية الاستخدام</span>
+                </div>
+                <i class="fas fa-chevron-down transition-transform group-open:rotate-180"></i>
+            </summary>
+            <div class="px-4 pb-4">
+                <ol class="text-sm space-y-2 list-decimal list-inside text-gray-600 dark:text-gray-400">
+                    <li>أضف الغرف من القائمة الجانبية أو اضغط <kbd
+                            class="px-2 py-1 bg-gray-200 dark:bg-gray-700 rounded text-xs">+ إضافة غرفة</kbd></li>
+                    <li>اسحب الغرف على اللوحة لترتيبها حسب رغبتك</li>
+                    <li>اضغط <span class="text-amber-600 font-bold">"تحقق"</span> لفحص المطابقة مع كود البناء السعودي
+                    </li>
+                    <li>اضغط <span class="text-purple-600 font-bold">"تصحيح ذكي"</span> للحصول على توصيات الذكاء
+                        الاصطناعي</li>
+                    <li>صدّر المخطط كملف DXF للاستخدام في AutoCAD</li>
+                </ol>
+            </div>
+        </details>
+
+        <!-- Main Grid Layout -->
+        <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
+
+            <!-- Left Panel: Room List (4 cols) -->
+            <div class="lg:col-span-4 space-y-4">
+
+                <!-- Add Room Card -->
+                <div class="glass-card rounded-xl p-4">
+                    <div class="flex justify-between items-center mb-4">
+                        <h3 class="font-bold flex items-center gap-2">
+                            <i class="fas fa-door-open text-teal-500"></i>
+                            قائمة الغرف
+                        </h3>
+                        <button onclick="addRoom()"
+                            class="px-4 py-2 btn-primary rounded-lg text-sm flex items-center gap-2">
+                            <i class="fas fa-plus"></i>
+                            إضافة
+                        </button>
+                    </div>
+
+                    <div id="rooms-container" class="rooms-container space-y-3">
+                        <!-- Rooms will be rendered here -->
+                    </div>
+
+                    <div id="empty-state" class="text-center py-8 text-gray-400 hidden">
+                        <i class="fas fa-inbox text-4xl mb-3"></i>
+                        <p>لا توجد غرف. اضغط "إضافة" للبدء</p>
+                    </div>
+                </div>
+
+                <!-- Compliance Summary -->
+                <div class="glass-card rounded-xl p-4">
+                    <h3 class="font-bold mb-4 flex items-center gap-2">
+                        <i class="fas fa-chart-pie text-teal-500"></i>
+                        ملخص المطابقة
+                    </h3>
+
+                    <div class="grid grid-cols-2 gap-3">
+                        <div class="p-3 rounded-xl bg-gray-100 dark:bg-gray-800 text-center">
+                            <div id="total-rooms" class="text-2xl font-bold">0</div>
+                            <div class="text-xs text-gray-500">إجمالي الغرف</div>
+                        </div>
+                        <div class="p-3 rounded-xl bg-teal-50 dark:bg-teal-900/20 text-center">
+                            <div id="total-area" class="text-2xl font-bold text-teal-600">0</div>
+                            <div class="text-xs text-gray-500">المساحة (م²)</div>
+                        </div>
+                        <div class="p-3 rounded-xl bg-green-50 dark:bg-green-900/20 text-center">
+                            <div id="compliant-rooms" class="text-2xl font-bold text-green-600">0</div>
+                            <div class="text-xs text-gray-500">مطابق</div>
+                        </div>
+                        <div class="p-3 rounded-xl bg-red-50 dark:bg-red-900/20 text-center">
+                            <div id="non-compliant-rooms" class="text-2xl font-bold text-red-600">0</div>
+                            <div class="text-xs text-gray-500">مخالف</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Action Buttons -->
+                <div class="glass-card rounded-xl p-4 space-y-3">
+                    <button onclick="validateAllRooms()" id="validate-btn"
+                        class="w-full py-3 px-4 rounded-xl font-bold flex items-center justify-center gap-2 bg-amber-500 hover:bg-amber-600 text-white transition">
+                        <i class="fas fa-clipboard-check"></i>
+                        تحقق من المطابقة
+                    </button>
+
+                    <button onclick="smartCorrectAll()" id="smart-btn"
+                        class="w-full py-3 px-4 rounded-xl font-bold flex items-center justify-center gap-2 bg-gradient-to-r from-purple-500 to-indigo-500 hover:opacity-90 text-white transition">
+                        <i class="fas fa-robot"></i>
+                        تصحيح ذكي (AI)
+                    </button>
+
+                    <button onclick="generateModifiedDXF()" id="export-btn"
+                        class="w-full py-3 px-4 rounded-xl font-bold flex items-center justify-center gap-2 bg-green-500 hover:bg-green-600 text-white transition">
+                        <i class="fas fa-file-export"></i>
+                        تصدير DXF
+                    </button>
+
+                    <div class="flex gap-2">
+                        <button onclick="exportPNG()"
+                            class="flex-1 py-2 px-3 rounded-xl text-sm btn-glass flex items-center justify-center gap-2">
+                            <i class="fas fa-image"></i>
+                            PNG
+                        </button>
+                        <button onclick="resetAll()"
+                            class="flex-1 py-2 px-3 rounded-xl text-sm btn-glass flex items-center justify-center gap-2 text-red-500">
+                            <i class="fas fa-trash-alt"></i>
+                            مسح الكل
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Right Panel: Canvas + AI (8 cols) -->
+            <div class="lg:col-span-8 space-y-4">
+
+                <!-- Floor Plan Canvas -->
+                <div class="canvas-container glass-card rounded-xl overflow-hidden">
+                    <div class="p-3 border-b border-gray-200 dark:border-gray-700 flex items-center justify-between">
+                        <h3 class="font-bold flex items-center gap-2">
+                            <i class="fas fa-drafting-compass text-teal-500"></i>
+                            معاينة المخطط
+                        </h3>
+                        <div class="flex items-center gap-4 text-xs">
+                            <span class="flex items-center gap-1">
+                                <span class="w-3 h-3 rounded bg-blue-500"></span>
+                                عامة
+                            </span>
+                            <span class="flex items-center gap-1">
+                                <span class="w-3 h-3 rounded bg-green-500"></span>
+                                خاصة
+                            </span>
+                            <span class="flex items-center gap-1">
+                                <span class="w-3 h-3 rounded bg-amber-500"></span>
+                                خدمية
+                            </span>
+                        </div>
+                    </div>
+                    <canvas id="floorPlanCanvas" width="800" height="500"></canvas>
+
+                    <!-- Canvas Controls -->
+                    <div class="absolute bottom-4 left-4 flex gap-2">
+                        <button onclick="zoomIn()"
+                            class="w-10 h-10 rounded-lg btn-glass flex items-center justify-center">
+                            <i class="fas fa-search-plus"></i>
+                        </button>
+                        <button onclick="zoomOut()"
+                            class="w-10 h-10 rounded-lg btn-glass flex items-center justify-center">
+                            <i class="fas fa-search-minus"></i>
+                        </button>
+                        <button onclick="resetView()"
+                            class="w-10 h-10 rounded-lg btn-glass flex items-center justify-center">
+                            <i class="fas fa-compress-arrows-alt"></i>
+                        </button>
+                    </div>
+
+                    <!-- Grid Toggle -->
+                    <div class="absolute top-16 left-4 flex items-center gap-2 text-sm">
+                        <span class="text-gray-500">الشبكة</span>
+                        <div id="gridToggle" class="toggle-switch active" onclick="toggleGrid()"></div>
+                    </div>
+                </div>
+
+                <!-- AI Suggestions Panel -->
+                <div id="ai-suggestions" class="ai-panel rounded-xl p-4 hidden">
+                    <div class="flex items-center gap-3 mb-4">
+                        <div
+                            class="w-10 h-10 bg-purple-100 dark:bg-purple-900/30 rounded-xl flex items-center justify-center">
+                            <i class="fas fa-brain text-purple-500"></i>
+                        </div>
+                        <div>
+                            <h3 class="font-bold">توصيات الذكاء الاصطناعي</h3>
+                            <p class="text-xs text-gray-500">تحليل متقدم للمخطط</p>
+                        </div>
+                    </div>
+                    <div id="ai-content" class="space-y-3">
+                        <!-- AI suggestions will appear here -->
+                    </div>
+                </div>
+
+                <!-- Zone Layout Suggestions -->
+                <div class="glass-card rounded-xl p-4">
+                    <h3 class="font-bold mb-4 flex items-center gap-2">
+                        <i class="fas fa-layer-group text-teal-500"></i>
+                        توزيع المناطق
+                    </h3>
+                    <div class="grid grid-cols-3 gap-3 text-center text-sm">
+                        <div class="p-3 rounded-xl bg-blue-50 dark:bg-blue-900/20">
+                            <i class="fas fa-users text-blue-500 text-xl mb-2"></i>
+                            <div class="font-bold text-blue-700 dark:text-blue-400">المنطقة العامة</div>
+                            <div class="text-xs text-gray-500">مجلس، غرفة طعام</div>
+                        </div>
+                        <div class="p-3 rounded-xl bg-green-50 dark:bg-green-900/20">
+                            <i class="fas fa-bed text-green-500 text-xl mb-2"></i>
+                            <div class="font-bold text-green-700 dark:text-green-400">المنطقة الخاصة</div>
+                            <div class="text-xs text-gray-500">غرف النوم</div>
+                        </div>
+                        <div class="p-3 rounded-xl bg-amber-50 dark:bg-amber-900/20">
+                            <i class="fas fa-sink text-amber-500 text-xl mb-2"></i>
+                            <div class="font-bold text-amber-700 dark:text-amber-400">منطقة الخدمات</div>
+                            <div class="text-xs text-gray-500">مطبخ، دورات مياه</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <script>
+        // ==========================================
+        // State Management
+        // ==========================================
+        let rooms = [];
+        let selectedRoomIndex = -1;
+        let isDragging = false;
+        let dragOffset = { x: 0, y: 0 };
+        let canvasScale = 1;
+        let showGrid = true;
+        let isDarkMode = false;
+
+        // Room Types Configuration
+        const roomTypes = {
+            'Bedroom': { ar: 'غرفة نوم', icon: 'fa-bed', zone: 'private', color: '#10b981' },
+            'Living Room': { ar: 'غرفة معيشة', icon: 'fa-couch', zone: 'public', color: '#3b82f6' },
+            'Kitchen': { ar: 'مطبخ', icon: 'fa-utensils', zone: 'service', color: '#f59e0b' },
+            'Bathroom': { ar: 'دورة مياه', icon: 'fa-bath', zone: 'service', color: '#f59e0b' },
+            'Majlis': { ar: 'مجلس', icon: 'fa-users', zone: 'public', color: '#3b82f6' },
+            'Dining Room': { ar: 'غرفة طعام', icon: 'fa-utensils', zone: 'public', color: '#3b82f6' }
+        };
+
+        const SCALE = 30; // Pixels per meter for canvas
+        const GRID_SIZE = 30;
+        const CANVAS_PADDING = 50;
+
+        // ==========================================
+        // Canvas Setup
+        // ==========================================
+        const canvas = document.getElementById('floorPlanCanvas');
+        const ctx = canvas.getContext('2d');
+
+        function resizeCanvas() {
+            const container = canvas.parentElement;
+            canvas.width = container.clientWidth;
+            canvas.height = Math.max(400, window.innerHeight - 400);
+            renderCanvas();
+        }
+
+        window.addEventListener('resize', resizeCanvas);
+
+        // ==========================================
+        // Canvas Rendering
+        // ==========================================
+        function renderCanvas() {
+            const width = canvas.width;
+            const height = canvas.height;
+
+            // Clear canvas
+            ctx.fillStyle = isDarkMode ? '#1e293b' : '#f8fafc';
+            ctx.fillRect(0, 0, width, height);
+
+            // Draw grid
+            if (showGrid) {
+                drawGrid(width, height);
+            }
+
+            // Draw rooms
+            rooms.forEach((room, idx) => {
+                drawRoom(room, idx);
+            });
+        }
+
+        function drawGrid(width, height) {
+            ctx.strokeStyle = isDarkMode ? 'rgba(148, 163, 184, 0.1)' : 'rgba(148, 163, 184, 0.3)';
+            ctx.lineWidth = 1;
+
+            // Vertical lines
+            for (let x = CANVAS_PADDING; x < width; x += GRID_SIZE * canvasScale) {
+                ctx.beginPath();
+                ctx.moveTo(x, 0);
+                ctx.lineTo(x, height);
+                ctx.stroke();
+            }
+
+            // Horizontal lines
+            for (let y = CANVAS_PADDING; y < height; y += GRID_SIZE * canvasScale) {
+                ctx.beginPath();
+                ctx.moveTo(0, y);
+                ctx.lineTo(width, y);
+                ctx.stroke();
+            }
+        }
+
+        function drawRoom(room, index) {
+            const x = (room.x || 50) * canvasScale + CANVAS_PADDING;
+            const y = (room.y || 50) * canvasScale + CANVAS_PADDING;
+            const w = room.width * SCALE * canvasScale;
+            const h = room.length * SCALE * canvasScale;
+
+            const config = roomTypes[room.type] || { color: '#64748b', zone: 'other' };
+            const isSelected = index === selectedRoomIndex;
+            const isCompliant = room.validation?.valid;
+            const isNonCompliant = room.validation && !room.validation.valid;
+
+            // Room fill
+            ctx.fillStyle = config.color + '20';
+            ctx.fillRect(x, y, w, h);
+
+            // Room border
+            ctx.strokeStyle = isSelected ? '#0f766e' : (isNonCompliant ? '#ef4444' : config.color);
+            ctx.lineWidth = isSelected ? 3 : 2;
+            ctx.strokeRect(x, y, w, h);
+
+            // Selection highlight
+            if (isSelected) {
+                ctx.setLineDash([5, 5]);
+                ctx.strokeStyle = '#0f766e';
+                ctx.strokeRect(x - 4, y - 4, w + 8, h + 8);
+                ctx.setLineDash([]);
+            }
+
+            // Compliance indicator
+            if (room.validation) {
+                ctx.beginPath();
+                ctx.arc(x + w - 12, y + 12, 8, 0, Math.PI * 2);
+                ctx.fillStyle = isCompliant ? '#10b981' : '#ef4444';
+                ctx.fill();
+
+                ctx.fillStyle = '#ffffff';
+                ctx.font = 'bold 10px Cairo';
+                ctx.textAlign = 'center';
+                ctx.fillText(isCompliant ? '✓' : '✗', x + w - 12, y + 16);
+            }
+
+            // Room label
+            ctx.fillStyle = isDarkMode ? '#f1f5f9' : '#1e293b';
+            ctx.font = `bold ${12 * canvasScale}px Cairo`;
+            ctx.textAlign = 'center';
+            ctx.fillText(config.ar || room.type, x + w / 2, y + h / 2 - 8);
+
+            // Dimensions
+            ctx.fillStyle = isDarkMode ? '#94a3b8' : '#64748b';
+            ctx.font = `${10 * canvasScale}px Cairo`;
+            ctx.fillText(`${room.width}م × ${room.length}م`, x + w / 2, y + h / 2 + 10);
+
+            // Area
+            const area = (room.width * room.length).toFixed(1);
+            ctx.font = `${9 * canvasScale}px Cairo`;
+            ctx.fillText(`${area} م²`, x + w / 2, y + h / 2 + 24);
+        }
+
+        // ==========================================
+        // Canvas Interactions (Drag & Drop)
+        // ==========================================
+        canvas.addEventListener('mousedown', handleMouseDown);
+        canvas.addEventListener('mousemove', handleMouseMove);
+        canvas.addEventListener('mouseup', handleMouseUp);
+        canvas.addEventListener('mouseleave', handleMouseUp);
+
+        // Touch support
+        canvas.addEventListener('touchstart', handleTouchStart);
+        canvas.addEventListener('touchmove', handleTouchMove);
+        canvas.addEventListener('touchend', handleMouseUp);
+
+        function getCanvasCoords(e) {
+            const rect = canvas.getBoundingClientRect();
+            const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+            const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+            return {
+                x: (clientX - rect.left - CANVAS_PADDING) / canvasScale,
+                y: (clientY - rect.top - CANVAS_PADDING) / canvasScale
+            };
+        }
+
+        function findRoomAtPoint(px, py) {
+            for (let i = rooms.length - 1; i >= 0; i--) {
+                const room = rooms[i];
+                const rx = room.x || 50;
+                const ry = room.y || 50;
+                const rw = room.width * SCALE;
+                const rh = room.length * SCALE;
+
+                if (px >= rx && px <= rx + rw && py >= ry && py <= ry + rh) {
+                    return i;
+                }
+            }
+            return -1;
+        }
+
+        function handleMouseDown(e) {
+            e.preventDefault();
+            const coords = getCanvasCoords(e);
+            const roomIdx = findRoomAtPoint(coords.x, coords.y);
+
+            if (roomIdx !== -1) {
+                selectedRoomIndex = roomIdx;
+                isDragging = true;
+                const room = rooms[roomIdx];
+                dragOffset.x = coords.x - (room.x || 50);
+                dragOffset.y = coords.y - (room.y || 50);
+                canvas.style.cursor = 'grabbing';
+            } else {
+                selectedRoomIndex = -1;
+            }
+            renderCanvas();
+        }
+
+        function handleMouseMove(e) {
+            if (!isDragging || selectedRoomIndex === -1) return;
+            e.preventDefault();
+
+            const coords = getCanvasCoords(e);
+            let newX = coords.x - dragOffset.x;
+            let newY = coords.y - dragOffset.y;
+
+            // Snap to grid
+            newX = Math.round(newX / GRID_SIZE) * GRID_SIZE;
+            newY = Math.round(newY / GRID_SIZE) * GRID_SIZE;
+
+            // Keep within bounds
+            newX = Math.max(0, newX);
+            newY = Math.max(0, newY);
+
+            rooms[selectedRoomIndex].x = newX;
+            rooms[selectedRoomIndex].y = newY;
+
+            renderCanvas();
+        }
+
+        function handleMouseUp() {
+            isDragging = false;
+            canvas.style.cursor = 'grab';
+        }
+
+        function handleTouchStart(e) {
+            e.preventDefault();
+            handleMouseDown(e);
+        }
+
+        function handleTouchMove(e) {
+            e.preventDefault();
+            handleMouseMove(e);
+        }
+
+        // ==========================================
+        // Room Management
+        // ==========================================
+        function addRoom() {
+            const newRoom = {
+                type: 'Bedroom',
+                width: 4,
+                length: 5,
+                x: 50 + (rooms.length % 3) * 150,
+                y: 50 + Math.floor(rooms.length / 3) * 200,
+                validation: null
+            };
+            rooms.push(newRoom);
+            renderRooms();
+            renderCanvas();
+        }
+
+        function removeRoom(idx) {
+            rooms.splice(idx, 1);
+            if (selectedRoomIndex === idx) selectedRoomIndex = -1;
+            else if (selectedRoomIndex > idx) selectedRoomIndex--;
+            renderRooms();
+            renderCanvas();
+        }
+
+        function updateRoom(idx, field, value) {
+            if (field === 'type') {
+                rooms[idx].type = value;
+                rooms[idx].validation = null;
+                // For type changes, we need to re-render the room card to update the icon/name
+                renderRooms();
+                renderCanvas();
+            } else {
+                rooms[idx][field] = parseFloat(value) || 0;
+                rooms[idx].validation = null;
+                // For dimension changes, only update canvas and summary - don't re-render room list
+                // This prevents the input from losing focus
+                updateSummary();
+                renderCanvas();
+            }
+        }
+
+        function selectRoom(idx) {
+            selectedRoomIndex = idx;
+            renderRooms();
+            renderCanvas();
+        }
+
+        // ==========================================
+        // Render Room List
+        // ==========================================
+        function renderRooms() {
+            const container = document.getElementById('rooms-container');
+            const emptyState = document.getElementById('empty-state');
+
+            if (rooms.length === 0) {
+                container.innerHTML = '';
+                emptyState.classList.remove('hidden');
+                updateSummary();
+                return;
+            }
+
+            emptyState.classList.add('hidden');
+            container.innerHTML = '';
+
+            rooms.forEach((room, idx) => {
+                const config = roomTypes[room.type] || { ar: room.type, icon: 'fa-square', color: '#64748b' };
+                const area = (room.width * room.length).toFixed(1);
+                const validation = room.validation;
+                const isSelected = idx === selectedRoomIndex;
+
+                let statusClass = '';
+                let statusBadge = '';
+
+                if (validation) {
+                    if (validation.valid) {
+                        statusClass = 'compliant';
+                        statusBadge = '<span class="px-2 py-1 bg-green-100 dark:bg-green-900/30 text-green-700 rounded-lg text-xs font-bold"><i class="fas fa-check"></i></span>';
+                    } else {
+                        statusClass = 'non-compliant';
+                        statusBadge = '<span class="px-2 py-1 bg-red-100 dark:bg-red-900/30 text-red-700 rounded-lg text-xs font-bold"><i class="fas fa-times"></i></span>';
+                    }
+                }
+
+                const div = document.createElement('div');
+                div.className = `room-card p-3 rounded-xl cursor-pointer animate-fadeInUp ${statusClass} ${isSelected ? 'ring-2 ring-teal-500' : ''}`;
+                div.style.animationDelay = `${idx * 0.05}s`;
+                div.onclick = () => selectRoom(idx);
+
+                div.innerHTML = `
+                    <div class="flex justify-between items-center mb-3">
+                        <div class="flex items-center gap-2">
+                            <div class="w-8 h-8 rounded-lg flex items-center justify-center" style="background: ${config.color}20; color: ${config.color}">
+                                <i class="fas ${config.icon} text-sm"></i>
+                            </div>
+                            <div>
+                                <div class="font-bold text-sm">${config.ar}</div>
+                                <div class="text-xs text-gray-500">${area} م²</div>
+                            </div>
+                        </div>
+                        <div class="flex items-center gap-2">
+                            ${statusBadge}
+                            <button onclick="event.stopPropagation(); getSmartSuggestion(${idx})" class="p-2 text-purple-500 hover:bg-purple-50 dark:hover:bg-purple-900/20 rounded-lg transition" title="اقتراح ذكي">
+                                <i class="fas fa-magic text-sm"></i>
+                            </button>
+                            <button onclick="event.stopPropagation(); removeRoom(${idx})" class="p-2 text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition">
+                                <i class="fas fa-trash text-sm"></i>
+                            </button>
+                        </div>
+                    </div>
+                    
+                    <div class="grid grid-cols-3 gap-2">
+                        <div>
+                            <label class="block text-xs text-gray-500 mb-1">النوع</label>
+                            <select onmousedown="event.stopPropagation()" onclick="event.stopPropagation()" onchange="event.stopPropagation(); updateRoom(${idx}, 'type', this.value)" class="w-full p-2 rounded-lg text-xs cursor-pointer">
+                                ${Object.entries(roomTypes).map(([en, cfg]) =>
+                    `<option value="${en}" ${room.type === en ? 'selected' : ''}>${cfg.ar}</option>`
+                ).join('')}
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block text-xs text-gray-500 mb-1">العرض (م)</label>
+                            <input type="number" value="${room.width}" 
+                                onmousedown="event.stopPropagation()" onclick="event.stopPropagation()" onfocus="event.stopPropagation()"
+                                oninput="event.stopPropagation(); updateRoom(${idx}, 'width', this.value)" 
+                                class="w-full p-2 rounded-lg text-xs text-center" step="0.5" min="1">
+                        </div>
+                        <div>
+                            <label class="block text-xs text-gray-500 mb-1">الطول (م)</label>
+                            <input type="number" value="${room.length}" 
+                                onmousedown="event.stopPropagation()" onclick="event.stopPropagation()" onfocus="event.stopPropagation()"
+                                oninput="event.stopPropagation(); updateRoom(${idx}, 'length', this.value)" 
+                                class="w-full p-2 rounded-lg text-xs text-center" step="0.5" min="1">
+                        </div>
+                    </div>
+                    
+                    ${validation && !validation.valid ? `
+                        <div class="mt-3 p-2 bg-red-50 dark:bg-red-900/20 rounded-lg text-xs text-red-700 dark:text-red-400">
+                            <i class="fas fa-exclamation-triangle ml-1"></i>
+                            ${validation.message}
+                        </div>
+                    ` : ''}
+                    
+                    <div id="suggestion-${idx}" class="mt-2"></div>
+                `;
+                container.appendChild(div);
+            });
+
+            updateSummary();
+        }
+
+        function updateSummary() {
+            const total = rooms.length;
+            const compliant = rooms.filter(r => r.validation?.valid).length;
+            const nonCompliant = rooms.filter(r => r.validation && !r.validation.valid).length;
+            const totalArea = rooms.reduce((sum, r) => sum + (r.width * r.length), 0);
+
+            document.getElementById('total-rooms').textContent = total;
+            document.getElementById('compliant-rooms').textContent = compliant;
+            document.getElementById('non-compliant-rooms').textContent = nonCompliant;
+            document.getElementById('total-area').textContent = totalArea.toFixed(0);
+        }
+
+        // ==========================================
+        // AI Smart Suggestions
+        // ==========================================
+        async function getSmartSuggestion(idx) {
+            const room = rooms[idx];
+            const suggestionDiv = document.getElementById(`suggestion-${idx}`);
+
+            suggestionDiv.innerHTML = '<div class="flex items-center gap-2 text-purple-600 text-sm p-2"><div class="loader"></div> الذكاء الاصطناعي يحلل...</div>';
+
+            try {
+                const token = localStorage.getItem('auth_token');
+                const headers = { 'Content-Type': 'application/json' };
+                if (token) headers['Authorization'] = 'Bearer ' + token;
+
+                const response = await fetch('/api/smart-correct', {
+                    method: 'POST',
+                    headers: headers,
+                    body: JSON.stringify({
+                        type: room.type,
+                        width: room.width,
+                        length: room.length
+                    })
+                });
+
+                if (response.ok) {
+                    const result = await response.json();
+
+                    if (result.is_compliant) {
+                        suggestionDiv.innerHTML = `
+                            <div class="p-2 bg-green-50 dark:bg-green-900/20 rounded-lg text-xs text-green-700 dark:text-green-400">
+                                <i class="fas fa-check-circle ml-1"></i> ${result.suggestion}
+                            </div>
+                        `;
+                    } else {
+                        suggestionDiv.innerHTML = `
+                            <div class="p-2 ai-panel rounded-lg">
+                                <p class="text-xs text-purple-800 dark:text-purple-300 mb-2">${result.suggestion}</p>
+                                <button onclick="event.stopPropagation(); applySuggestion(${idx}, ${result.recommended_width}, ${result.recommended_length})" 
+                                    class="w-full py-2 bg-purple-500 text-white rounded-lg text-xs font-bold hover:bg-purple-600 transition">
+                                    <i class="fas fa-check ml-1"></i> تطبيق: ${result.recommended_width}م × ${result.recommended_length}م
+                                </button>
+                            </div>
+                        `;
+                    }
+                } else {
+                    suggestionDiv.innerHTML = '<div class="p-2 text-red-500 text-xs"><i class="fas fa-times"></i> فشل الحصول على اقتراح</div>';
+                }
+            } catch (e) {
+                console.error(e);
+                suggestionDiv.innerHTML = '<div class="p-2 text-red-500 text-xs"><i class="fas fa-wifi"></i> خطأ في الاتصال</div>';
+            }
+        }
+
+        function applySuggestion(idx, width, length) {
+            rooms[idx].width = width;
+            rooms[idx].length = length;
+            rooms[idx].validation = null;
+            renderRooms();
+            renderCanvas();
+        }
+
+        async function smartCorrectAll() {
+            const btn = document.getElementById('smart-btn');
+            const originalHTML = btn.innerHTML;
+            btn.innerHTML = '<div class="loader"></div> جاري التصحيح...';
+            btn.disabled = true;
+
+            // Show AI panel
+            const aiPanel = document.getElementById('ai-suggestions');
+            const aiContent = document.getElementById('ai-content');
+            aiPanel.classList.remove('hidden');
+            aiContent.innerHTML = '<div class="flex items-center gap-2 text-purple-600"><div class="loader"></div> جاري تحليل المخطط...</div>';
+
+            const suggestions = [];
+
+            for (let i = 0; i < rooms.length; i++) {
+                await validateRoom(i);
+                if (rooms[i].validation && !rooms[i].validation.valid) {
+                    const result = await getSmartSuggestionAndApply(i);
+                    if (result) suggestions.push(result);
+                }
+            }
+
+            // Update AI panel with results
+            if (suggestions.length > 0) {
+                aiContent.innerHTML = suggestions.map((s, i) => `
+                    <div class="p-3 bg-white dark:bg-gray-800 rounded-lg">
+                        <div class="flex items-center gap-2 mb-1">
+                            <i class="fas fa-check-circle text-green-500"></i>
+                            <span class="font-bold text-sm">${s.room}</span>
+                        </div>
+                        <p class="text-xs text-gray-600 dark:text-gray-400">${s.suggestion}</p>
+                    </div>
+                `).join('');
+            } else {
+                aiContent.innerHTML = `
+                    <div class="text-center p-4">
+                        <i class="fas fa-check-circle text-green-500 text-3xl mb-2"></i>
+                        <p class="text-sm">جميع الغرف مطابقة للكود!</p>
+                    </div>
+                `;
+            }
+
+            // Add zone suggestions
+            const zoneSuggestions = generateZoneSuggestions();
+            if (zoneSuggestions.length > 0) {
+                aiContent.innerHTML += `
+                    <div class="border-t border-purple-200 dark:border-purple-800 pt-3 mt-3">
+                        <div class="font-bold text-sm mb-2"><i class="fas fa-layer-group ml-1"></i> توصيات التوزيع</div>
+                        ${zoneSuggestions.map(s => `
+                            <div class="flex items-start gap-2 text-xs text-gray-600 dark:text-gray-400 mb-1">
+                                <i class="fas fa-lightbulb text-amber-500 mt-0.5"></i>
+                                <span>${s}</span>
+                            </div>
+                        `).join('')}
+                    </div>
+                `;
+            }
+
+            renderRooms();
+            renderCanvas();
+            btn.innerHTML = originalHTML;
+            btn.disabled = false;
+        }
+
+        function generateZoneSuggestions() {
+            const suggestions = [];
+            const hasKitchen = rooms.some(r => r.type === 'Kitchen');
+            const hasDining = rooms.some(r => r.type === 'Dining Room');
+            const hasMajlis = rooms.some(r => r.type === 'Majlis');
+            const hasLiving = rooms.some(r => r.type === 'Living Room');
+
+            if (hasKitchen && hasDining) {
+                suggestions.push('يُفضل وضع المطبخ بجانب غرفة الطعام لسهولة الخدمة.');
+            }
+            if (hasMajlis && hasLiving) {
+                suggestions.push('المجلس وغرفة المعيشة يمكن أن يكونا متجاورين في المنطقة العامة.');
+            }
+            if (rooms.filter(r => r.type === 'Bedroom').length >= 2) {
+                suggestions.push('يُفضل تجميع غرف النوم في منطقة خاصة واحدة بعيداً عن منطقة الاستقبال.');
+            }
+
+            return suggestions;
+        }
+
+        async function getSmartSuggestionAndApply(idx) {
+            const room = rooms[idx];
+            const config = roomTypes[room.type] || { ar: room.type };
+
+            try {
+                const token = localStorage.getItem('auth_token');
+                const headers = { 'Content-Type': 'application/json' };
+                if (token) headers['Authorization'] = 'Bearer ' + token;
+
+                const response = await fetch('/api/smart-correct', {
+                    method: 'POST',
+                    headers: headers,
+                    body: JSON.stringify({
+                        type: room.type,
+                        width: room.width,
+                        length: room.length
+                    })
+                });
+
+                if (response.ok) {
+                    const result = await response.json();
+                    if (result.recommended_width && result.recommended_length) {
+                        rooms[idx].width = result.recommended_width;
+                        rooms[idx].length = result.recommended_length;
+                        return { room: config.ar, suggestion: result.suggestion };
+                    }
+                }
+            } catch (e) {
+                console.error(e);
+            }
+            return null;
+        }
+
+        // ==========================================
+        // Validation
+        // ==========================================
+        async function validateRoom(idx) {
+            const room = rooms[idx];
+            const token = localStorage.getItem('auth_token');
+            const headers = { 'Content-Type': 'application/json' };
+            if (token) headers['Authorization'] = 'Bearer ' + token;
+
+            try {
+                const response = await fetch('/api/validate-room', {
+                    method: 'POST',
+                    headers: headers,
+                    body: JSON.stringify({
+                        type: room.type,
+                        width: room.width,
+                        length: room.length
+                    })
+                });
+
+                if (response.ok) {
+                    rooms[idx].validation = await response.json();
+                }
+            } catch (e) {
+                console.error('Validation error:', e);
+            }
+        }
+
+        async function validateAllRooms() {
+            const btn = document.getElementById('validate-btn');
+            const originalHTML = btn.innerHTML;
+            btn.innerHTML = '<div class="loader"></div> جاري التحقق...';
+            btn.disabled = true;
+
+            for (let i = 0; i < rooms.length; i++) {
+                await validateRoom(i);
+            }
+
+            renderRooms();
+            renderCanvas();
+            btn.innerHTML = originalHTML;
+            btn.disabled = false;
+        }
+
+        // ==========================================
+        // Export Functions
+        // ==========================================
+        async function generateModifiedDXF() {
+            if (rooms.length === 0) {
+                alert('الرجاء إضافة غرف أولاً');
+                return;
+            }
+
+            const btn = document.getElementById('export-btn');
+            const originalHTML = btn.innerHTML;
+
+            try {
+                btn.disabled = true;
+                btn.innerHTML = '<div class="loader"></div> جاري إنشاء المخطط...';
+
+                const token = localStorage.getItem('auth_token');
+                const headers = { 'Content-Type': 'application/json' };
+                if (token) headers['Authorization'] = 'Bearer ' + token;
+
+                const response = await fetch('/api/generate-dxf', {
+                    method: 'POST',
+                    headers: headers,
+                    body: JSON.stringify({ rooms: rooms, validate: true })
+                });
+
+                if (response.ok) {
+                    const blob = await response.blob();
+                    const url = window.URL.createObjectURL(blob);
+                    const a = document.createElement('a');
+                    a.href = url;
+                    a.download = `Emad_FloorPlan_${Date.now()}.dxf`;
+                    document.body.appendChild(a);
+                    a.click();
+                    window.URL.revokeObjectURL(url);
+                    btn.innerHTML = '<i class="fas fa-check"></i> تم التصدير!';
+                    setTimeout(() => btn.innerHTML = originalHTML, 2000);
+                } else {
+                    if (response.status === 401) {
+                        alert('يرجى تسجيل الدخول أولاً');
+                        window.location.href = '/';
+                    } else {
+                        const err = await response.json();
+                        alert('حدث خطأ: ' + (err.detail || 'Unknown error'));
+                    }
+                }
+            } catch (e) {
+                console.error(e);
+                alert('فشل الاتصال بالخادم');
+            } finally {
+                btn.disabled = false;
+                if (btn.innerHTML.includes('جاري')) btn.innerHTML = originalHTML;
+            }
+        }
+
+        function exportPNG() {
+            const dataURL = canvas.toDataURL('image/png');
+            const a = document.createElement('a');
+            a.href = dataURL;
+            a.download = `Emad_FloorPlan_${Date.now()}.png`;
+            a.click();
+        }
+
+        function resetAll() {
+            if (confirm('هل أنت متأكد من حذف جميع الغرف؟')) {
+                rooms = [];
+                selectedRoomIndex = -1;
+                document.getElementById('ai-suggestions').classList.add('hidden');
+                renderRooms();
+                renderCanvas();
+            }
+        }
+
+        // ==========================================
+        // Canvas Controls
+        // ==========================================
+        function zoomIn() {
+            canvasScale = Math.min(canvasScale * 1.2, 3);
+            renderCanvas();
+        }
+
+        function zoomOut() {
+            canvasScale = Math.max(canvasScale / 1.2, 0.5);
+            renderCanvas();
+        }
+
+        function resetView() {
+            canvasScale = 1;
+            renderCanvas();
+        }
+
+        function toggleGrid() {
+            showGrid = !showGrid;
+            document.getElementById('gridToggle').classList.toggle('active', showGrid);
+            renderCanvas();
+        }
+
+        // ==========================================
+        // Dark Mode
+        // ==========================================
+        function toggleDarkMode() {
+            isDarkMode = !isDarkMode;
+            document.documentElement.classList.toggle('dark', isDarkMode);
+            document.getElementById('darkModeIcon').className = isDarkMode ? 'fas fa-sun' : 'fas fa-moon';
+            localStorage.setItem('darkMode', isDarkMode);
+            renderCanvas();
+        }
+
+        // ==========================================
+        // URL Parameters (Integration)
+        // ==========================================
+        function loadFromParams() {
+            const params = new URLSearchParams(window.location.search);
+            const roomsParam = params.get('rooms');
+
+            if (roomsParam) {
+                try {
+                    const parsedRooms = JSON.parse(decodeURIComponent(roomsParam));
+                    rooms = parsedRooms.map((r, i) => ({
+                        ...r,
+                        x: 50 + (i % 3) * 150,
+                        y: 50 + Math.floor(i / 3) * 200,
+                        validation: null
+                    }));
+                    renderRooms();
+                    renderCanvas();
+                } catch (e) {
+                    console.error('Failed to parse rooms from URL:', e);
+                }
+            }
+
+            // Check localStorage for project data from analysis
+            const projectRooms = localStorage.getItem('emad_edit_rooms');
+            if (projectRooms && rooms.length === 0) {
+                try {
+                    const parsedRooms = JSON.parse(projectRooms);
+                    console.log('Loaded rooms from analysis:', parsedRooms);
+
+                    rooms = parsedRooms.map((r, i) => {
+                        // Map room type to our supported types
+                        let mappedType = r.type || 'Bedroom';
+
+                        // Normalize common room type variations
+                        const typeMap = {
+                            'Living': 'Living Room',
+                            'Salon': 'Living Room',
+                            'Majlis': 'Majlis',
+                            'Kitchen': 'Kitchen',
+                            'Bedroom': 'Bedroom',
+                            'Bathroom': 'Bathroom',
+                            'WC': 'Bathroom',
+                            'Dining': 'Dining Room',
+                            'Dining Room': 'Dining Room'
+                        };
+
+                        // Find best match
+                        for (const [key, value] of Object.entries(typeMap)) {
+                            if (mappedType.toLowerCase().includes(key.toLowerCase())) {
+                                mappedType = value;
+                                break;
+                            }
+                        }
+
+                        // Fall back to first available if not matched
+                        if (!roomTypes[mappedType]) {
+                            mappedType = 'Bedroom';
+                        }
+
+                        return {
+                            type: mappedType,
+                            width: parseFloat(r.width) || 4,
+                            length: parseFloat(r.length) || 5,
+                            x: 50 + (i % 3) * 180,
+                            y: 50 + Math.floor(i / 3) * 250,
+                            validation: r.isCompliant === false ? {
+                                valid: false,
+                                message: r.violation?.message || 'مخالف - تم اكتشافه من التحليل'
+                            } : null,
+                            originalId: r.originalId || null
+                        };
+                    });
+
+                    localStorage.removeItem('emad_edit_rooms');
+
+                    // Show notification that rooms were loaded from analysis
+                    setTimeout(() => {
+                        const aiPanel = document.getElementById('ai-suggestions');
+                        const aiContent = document.getElementById('ai-content');
+                        aiPanel.classList.remove('hidden');
+                        aiContent.innerHTML = `
+                            <div class="p-3 bg-teal-50 dark:bg-teal-900/20 rounded-lg text-center">
+                                <i class="fas fa-check-circle text-teal-500 text-2xl mb-2"></i>
+                                <p class="font-bold text-teal-700 dark:text-teal-400">تم تحميل ${rooms.length} غرف من تحليل المخطط</p>
+                                <p class="text-xs text-gray-500 mt-1">يمكنك تعديل الأبعاد وإعادة التحقق من المطابقة</p>
+                            </div>
+                        `;
+                    }, 500);
+
+                    renderRooms();
+                    renderCanvas();
+                } catch (e) {
+                    console.error('Failed to load rooms from storage:', e);
+                }
+            }
+        }
+
+        // ==========================================
+        // Initialize
+        // ==========================================
+        function init() {
+            // Check dark mode preference
+            const savedDarkMode = localStorage.getItem('darkMode');
+            if (savedDarkMode === 'true' || (!savedDarkMode && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
+                isDarkMode = true;
+                document.documentElement.classList.add('dark');
+                document.getElementById('darkModeIcon').className = 'fas fa-sun';
+            }
+
+            // Load from URL or storage
+            loadFromParams();
+
+            // Add default rooms if empty
+            if (rooms.length === 0) {
+                rooms = [
+                    { type: 'Majlis', width: 5, length: 7, x: 50, y: 50, validation: null },
+                    { type: 'Kitchen', width: 3, length: 3, x: 200, y: 50, validation: null },
+                    { type: 'Bedroom', width: 4, length: 5, x: 50, y: 280, validation: null }
+                ];
+            }
+
+            resizeCanvas();
+            renderRooms();
+        }
+
+        init();
+    </script>
+</body>
+
+</html>

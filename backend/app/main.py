@@ -71,7 +71,7 @@ app.include_router(chat_router.router)
 # -------------------------------------------------
 def process_floor_plan(task_id: str, file_path: str, settings: dict, base_url: str, owner_id: int = None):
     """Background task to analyze floor plan and save annotated image."""
-    print(f"🚀 Starting analysis for task: {task_id}")
+    print(f"Starting analysis for task: {task_id}")
     
     # Get DB session for background task
     db = SessionLocal()
@@ -88,7 +88,7 @@ def process_floor_plan(task_id: str, file_path: str, settings: dict, base_url: s
             output_filename = f"{task_id}_analyzed.jpg"
             output_path = os.path.join(UPLOAD_DIR, output_filename)
             cv2.imwrite(output_path, annotated_image)
-            print(f"💾 Saved annotated image: {output_path}")
+            print(f"Saved annotated image: {output_path}")
             
             analyzed_url = f"{base_url}/uploads/{output_filename}"
             result_data["imageUrl"] = analyzed_url
@@ -133,7 +133,7 @@ def process_floor_plan(task_id: str, file_path: str, settings: dict, base_url: s
         }
         
     except Exception as e:
-        print(f"❌ Analysis failed: {e}")
+        print(f"Analysis failed: {e}")
         
         # Update project status to failed
         project = db.query(Project).filter(Project.task_id == task_id).first()
@@ -148,7 +148,7 @@ def process_floor_plan(task_id: str, file_path: str, settings: dict, base_url: s
     finally:
         db.close()
     
-    print(f"✅ Task {task_id} complete!")
+    print(f"Task {task_id} complete!")
 
 
 # -------------------------------------------------
@@ -232,6 +232,15 @@ if os.path.exists(ASSETS_DIR):
 app.mount("/uploads", StaticFiles(directory=UPLOAD_DIR), name="uploads")
 
 
+@app.get("/generator")
+async def serve_generator():
+    """Serve the standalone CAD Generator page."""
+    path = os.path.join(PROJECT_ROOT, "backend", "app", "static", "generator.html")
+    if os.path.exists(path):
+        return FileResponse(path)
+    return "Generator file not found."
+
+
 @app.get("/{full_path:path}")
 async def serve_spa(full_path: str):
     """Serve Vue.js SPA."""
@@ -255,6 +264,6 @@ async def serve_spa(full_path: str):
 if __name__ == "__main__":
     import uvicorn
     print("=" * 50)
-    print("🏗️  Emad (عماد) - AI Floor Plan Auditor")
+    print("Emad - AI Floor Plan Auditor")
     print("=" * 50)
     uvicorn.run(app, host="0.0.0.0", port=8005)
