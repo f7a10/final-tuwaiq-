@@ -1,132 +1,128 @@
-# عماد (Emad) - AI Floor Plan Auditor
+# Emad (عماد) - AI Floor Plan Auditor
 
+## Overview
 
-An AI-powered floor plan auditor that checks architectural drawings for compliance with the Saudi Building Code (SBC 1101).
+Emad is an advanced AI-powered architectural auditing system designed to verify residential floor plans against the Saudi Building Code (SBC 1101). The system utilizes computer vision for room detection and Large Language Models (LLMs) with Retrieval-Augmented Generation (RAG) to provide real-time compliance feedback and interactive consultation.
+
+## Features
+
+- **Automated Floor Plan Analysis**: Uses machine learning to segment rooms, identify types, and calculate dimensions.
+- **SBC 1101 Compliance Checking**: Automatically verifies room areas and dimensions against Saudi Building Code requirements.
+- **Intelligent RAG Assistant**: A specialized chatbot capable of answering engineering questions by retrieving evidence directly from the SBC 1101 text.
+- **Interactive Dashboard**: A modern, responsive web interface supporting Arabic RTL layouts.
+- **Reporting**: Generates visual compliance reports highlighting violations and offering corrective suggestions.
+
+## Technology Stack
+
+### Backend
+- **Framework**: FastAPI (Python)
+- **Database**: SQLite (Application Data), ChromaDB (Vector Embeddings)
+- **AI/ML**: 
+  - PyTorch / Ultralytics (Vision Models)
+  - LangChain / RAG (Context Retrieval)
+  - OpenAI / Grok API (LLM Integration)
+
+### Frontend
+- **Framework**: Vue.js 3
+- **State Management**: Pinia
+- **Styling**: Tailwind CSS
+- **Routing**: Vue Router
 
 ## Project Structure
 
 ```
 FinalProjectTQ/
-├── backend/                    # Python FastAPI Backend
+├── backend/                    # Core Application Logic
 │   ├── app/
-│   │   ├── __init__.py
-│   │   ├── main.py            # FastAPI app entry point
-│   │   ├── config.py          # Configuration settings
-│   │   ├── api/               # API route modules
-│   │   │   ├── auth.py        # Auth endpoints (login, register)
-│   │   │   ├── projects.py    # Project CRUD endpoints
-│   │   │   └── chat.py        # AI chat endpoints
-│   │   ├── auth/              # Authentication utilities
-│   │   │   ├── utils.py       # Password hashing, JWT
-│   │   │   ├── dependencies.py # FastAPI auth dependencies
-│   │   │   └── schemas.py     # Pydantic models
-│   │   ├── models/            # Database models
-│   │   │   └── database.py    # SQLAlchemy models
-│   │   └── services/          # Business logic services
-│   │       ├── smart_architect.py  # ML analysis
-│   │       └── llm_service.py      # LLM integration
-│   ├── scripts/
-│   │   └── build_saudi_db.py  # Database setup scripts
-│   └── requirements.txt
+│   │   ├── api/               # REST API Endpoints
+│   │   ├── services/          # AI & Business Logic
+│   │   ├── models/            # Database Schema
+│   │   └── main.py            # Application Entry Point
+│   └── scripts/               # Utility Scripts
 │
-├── frontend/                   # Vue.js Frontend
+├── frontend/                   # Web Interface
 │   ├── src/
-│   │   ├── App.vue
-│   │   ├── main.js
-│   │   ├── style.css
-│   │   ├── assets/            # Static files
-│   │   ├── components/        # Reusable components
-│   │   │   ├── ui/            # UI components
-│   │   │   └── layout/        # Layout components
-│   │   ├── views/             # Page components
-│   │   │   ├── HomeView.vue
-│   │   │   ├── DashboardView.vue
-│   │   │   ├── HistoryView.vue
-│   │   │   ├── ProfileView.vue
-│   │   │   ├── auth/
-│   │   │   │   ├── LoginView.vue
-│   │   │   │   └── RegisterView.vue
-│   │   │   └── admin/
-│   │   │       └── AdminDashboardView.vue
-│   │   ├── stores/            # Pinia stores
-│   │   │   ├── auth.js
-│   │   │   └── analysis.js
-│   │   └── router/
-│   │       └── index.js
-│   ├── index.html
-│   ├── package.json
-│   ├── vite.config.js
-│   └── tailwind.config.js
+│   │   ├── components/        # Vue Components
+│   │   ├── views/             # Page Views
+│   │   └── stores/            # State Management
 │
-├── sbc_rag_sys/               # Saudi Building Code RAG System
-├── saudi_sbc_db/              # ChromaDB vector database
-├── uploads/                   # Uploaded floor plans
-├── dist/                      # Production build output
-├── emad.db                    # SQLite database
-│
-├── main.py                    # Legacy entry point (still works)
-├── auth.py                    # Legacy auth module
-├── models.py                  # Legacy models
-└── README.md                  # This file
+├── sbc_rag_sys/               # Retrieval-Augmented Generation Module
+└── uploads/                   # Temporary File Storage
 ```
 
-## Quick Start
+## Installation & Setup
 
-### Backend (from root directory - legacy mode)
+### Prerequisites
+- Python 3.10+
+- Node.js 18+
+- Git
+
+### 1. Backend Setup
+
+Navigate to the project root and create a virtual environment:
+
 ```bash
-# Install dependencies
+python -m venv .venv
+# Activate: 
+# Windows: .venv\Scripts\activate
+# Mac/Linux: source .venv/bin/activate
+```
+
+Install Python dependencies:
+
+```bash
 pip install -r requirements.txt
-
-# Run the server
-python main.py
 ```
 
-### Backend (new modular structure)
-```bash
-# From project root
-python -m backend.app.main
-```
+### 2. Frontend Setup
 
-### Frontend
+Navigate to the frontend directory:
+
 ```bash
 cd frontend
 npm install
-npm run dev      # Development
-npm run build    # Production build
 ```
 
-## Features
+### 3. Environment Configuration
 
-- **AI Floor Plan Analysis**: Detects rooms and checks compliance with SBC 1101
-- **User Authentication**: JWT-based login/register with per-user project history
-- **Real-time Chat**: AI assistant for building code questions
-- **Responsive UI**: Modern Arabic RTL interface
+Create a `.env` file in the root directory containing your API keys:
 
-## Color Scheme
+```ini
+OPENAI_API_KEY=your_key_here
+ROBOFLOW_API_KEY=your_key_here
+OPENROUTER_API_KEY=your_key_here
+```
 
-| Color | Hex | Usage |
-|-------|-----|-------|
-| Primary | `#0F766E` | Buttons, headers |
-| Secondary | `#334155` | Text |
-| Accent | `#F59E0B` | Highlights |
+## Running the Application
 
-## API Endpoints
+### Start the Backend Server
 
-### Authentication
-- `POST /api/register` - Create account
-- `POST /api/login` - Login
-- `GET /api/me` - Get current user
+From the project root:
 
-### Projects
-- `POST /api/upload` - Upload floor plan
-- `GET /api/projects/me` - Get user's projects
-- `GET /api/projects/{id}` - Get project details
-- `DELETE /api/projects/{id}` - Delete project
+```bash
+python -m backend.app.main
+```
+The API will be available at `http://localhost:8005`.
 
-### Analysis
-- `GET /api/analysis/{task_id}` - Get analysis status
-- `POST /api/chat` - Chat with AI
+### Start the Frontend Client
+
+From the frontend directory:
+
+```bash
+npm run dev
+```
+The interface will be available at `http://localhost:5173` (or the port specified by Vite).
+
+## API Documentation
+
+The backend provides interactive documentation via Swagger UI. Once the server is running, navigate to:
+`http://localhost:8005/docs`
+
+### Key Endpoints
+- `POST /api/upload`: Upload and analyze a floor plan image.
+- `GET /api/analysis/{task_id}`: Retrieve analysis results.
+- `POST /api/chat`: Query the AI consultant regarding building codes.
 
 ## License
 
-© 2026 Emad (عماد) - All rights reserved.
+Copyright 2026 Emad - AI Floor Plan Auditor. All Rights Reserved.
