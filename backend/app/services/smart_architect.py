@@ -7,10 +7,25 @@ import cv2
 import base64
 import json
 import numpy as np
-from openai import OpenAI
-from inference_sdk import InferenceHTTPClient
 
-from backend.app.config import ROBOFLOW_API_KEY, OPENROUTER_API_KEY, PROJECT_ROOT
+from backend.app.config import (
+    FLOOR_PLAN_DETECTOR,
+    LOCAL_FLOORPLAN_MAX_DIMENSION,
+    LOCAL_FLOORPLAN_MODEL_PATH,
+    OPENROUTER_API_KEY,
+    OPENROUTER_ASSISTANT_MODEL,
+    OPENROUTER_FALLBACK_MODELS,
+    OPENROUTER_PLANNING_MODEL,
+    OPENROUTER_VISION_MODEL,
+    PROJECT_ROOT,
+    ROBOFLOW_API_KEY,
+)
+from backend.app.services.ai_provider import OpenRouterProvider, ProviderModels
+from backend.app.services.floorplan_detector import (
+    FloorPlanDetectorError,
+    build_floorplan_detector,
+)
+from backend.app.services.plan_ingestion import prepare_floor_plan
 
 # Import CAD Compliance RAG
 import sys
@@ -20,6 +35,11 @@ from cad_compliance_rag.src.analyze_plan import analyze_plan
 # Engineering settings
 PIXELS_PER_METER = 100.0  # Default scale
 WINDOW_PADDING = 25       # Pixels to expand search area for windows
+
+
+class AnalysisPipelineError(RuntimeError):
+    """Raised when a required analysis stage cannot produce reliable evidence."""
+
 
 # Room type mapping: AI output -> cad_compliance_rag types
 ROOM_TYPE_MAP = {
@@ -186,17 +206,24 @@ def calculate_proposed_fix(room_box, rule_id, expected_str, current_metrics, sca
 class SmartArchitect:
     """Full analysis class for floor plan processing with CAD Compliance RAG."""
     
-    def __init__(self):
+    def __init__(self, *, detector=None, ai_provider=None):
         print("Initializing SmartArchitect...")
-        self.ai = OpenAI(
-            base_url="https://openrouter.ai/api/v1",
-            api_key=OPENROUTER_API_KEY
+        self.ai_provider = ai_provider or OpenRouterProvider(
+                api_key=OPENROUTER_API_KEY,
+                models=ProviderModels(
+                    vision=OPENROUTER_VISION_MODEL,
+                    planning=OPENROUTER_PLANNING_MODEL,
+                    assistant=OPENROUTER_ASSISTANT_MODEL,
+                    fallbacks=OPENROUTER_FALLBACK_MODELS,
+                ),
+            )
+        self.detector = detector or build_floorplan_detector(
+            provider=FLOOR_PLAN_DETECTOR,
+            local_model_path=LOCAL_FLOORPLAN_MODEL_PATH,
+            local_max_dimension=LOCAL_FLOORPLAN_MAX_DIMENSION,
+            roboflow_api_key=ROBOFLOW_API_KEY,
         )
-        self.rf = InferenceHTTPClient(
-            api_url="https://detect.roboflow.com",
-            api_key=ROBOFLOW_API_KEY
-        )
-        print("SmartArchitect initialized successfully.")
+        print(f"SmartArchitect initialized with {FLOOR_PLAN_DETECTOR} detector.")
 
     def encode_image(self, cv2_img):
         """Convert OpenCV image to base64."""
@@ -204,7 +231,7 @@ class SmartArchitect:
         return base64.b64encode(buffer).decode('utf-8')
 
     def identify_room_type(self, room_crop):
-        """Identify room type using Grok 3 Vision (paid model)."""
+        """Identify a room using the configured OpenRouter vision role."""
         base64_image = self.encode_image(room_crop)
 
         prompt = """Analyze this floor plan room crop. Identify the room type based on the labels, furniture, and fixtures visible.
@@ -227,77 +254,67 @@ Choose ONE from this exact list:
 If the room combines two functions (e.g., Open Kitchen and Living), choose 'Living Room'.
 Output ONLY the room type name, nothing else."""
 
-        # Paid vision models - Grok 4.1 Fast first
-        vision_models = [
-            "x-ai/grok-4.1-fast",              # Grok 4.1 Fast (primary - requires credits)
-            "openai/gpt-4o",                    # GPT-4o fallback (requires credits)
-            "google/gemini-2.0-flash-exp:free", # Free fallback
-            "meta-llama/llama-3.2-11b-vision-instruct:free", # Free fallback 2
-            "qwen/qwen-2-vl-7b-instruct:free",  # Free fallback 3
-        ]
+        try:
+            result = self.ai_provider.complete_text(
+                role="vision",
+                messages=[
+                    {
+                        "role": "user",
+                        "content": [
+                            {"type": "text", "text": prompt},
+                            {
+                                "type": "image_url",
+                                "image_url": {
+                                    "url": f"data:image/jpeg;base64,{base64_image}",
+                                },
+                            },
+                        ],
+                    }
+                ],
+                max_tokens=128,
+                temperature=0,
+                extra_body={
+                    "reasoning": {"effort": "minimal", "exclude": True},
+                },
+            ).strip()
+        except Exception as error:
+            print(f"    Vision role failed: {type(error).__name__}")
+            return "Unknown"
 
-        import time
-
-        for model_id in vision_models:
-            try:
-                print(f"    Trying VLM: {model_id}...")
-                
-                # Add delay for usually rate-limited free models
-                if ":free" in model_id:
-                    time.sleep(2)
-
-                response = self.ai.chat.completions.create(
-                    model=model_id,
-                    messages=[
-                        {
-                            "role": "user",
-                            "content": [
-                                {"type": "text", "text": prompt},
-                                {"type": "image_url", "image_url": {"url": f"data:image/jpeg;base64,{base64_image}"}}
-                            ]
-                        }
-                    ],
-                    max_tokens=60
-                )
-                result = response.choices[0].message.content.strip()
-                print(f"    {model_id} Identified: {result}")
-                
-                # Specific validation for empty or garbage results
-                if not result or len(result) > 50 or "error" in result.lower():
-                    print(f"    Invalid result from {model_id}: {result}")
-                    continue
-                    
-                return result
-                
-            except Exception as e:
-                print(f"    {model_id} Error: {e}")
-                continue
-
-        print("    All VLM models failed")
-        return "Unknown"
+        if not result or len(result) > 50 or "error" in result.lower():
+            print("    Vision role returned an invalid room label")
+            return "Unknown"
+        return result
 
     def analyze(self, image_path: str, task_id: str = "unknown"):
         """
         Full analysis pipeline with CAD Compliance RAG integration.
         """
         print(f"Analyzing: {image_path}")
-        
-        # Load image
-        img = cv2.imread(image_path)
-        if img is None:
-            return {"error": "Could not load image"}, None
-        
+        with prepare_floor_plan(image_path) as prepared:
+            return self._analyze_image(
+                image=prepared.image,
+                inference_path=prepared.inference_path,
+                task_id=task_id,
+            )
+
+    def _analyze_image(self, *, image, inference_path: str, task_id: str):
+        img = image
         H, W = img.shape[:2]
         visual_result = img.copy()
         
-        # Step 1: Detect structures (doors, windows)
-        print("1. Detecting windows and doors (CubiCasa)...")
+        # Step 1: Detect geometry locally or through the explicitly selected provider.
+        print("1. Detecting walls, openings, and room regions...")
         try:
-            structure_result = self.rf.infer(image_path, model_id="cubicasa5k-2-qpmsa/6")
-            structure_predictions = structure_result.get('predictions', [])
-        except Exception as e:
-            print(f"Structure detection failed: {e}")
-            structure_predictions = []
+            detections = self.detector.detect(img, inference_path=inference_path)
+        except FloorPlanDetectorError as error:
+            print(f"Floor-plan detection failed: {error.code}")
+            raise AnalysisPipelineError(error.code) from error
+
+        structure_predictions = detections.structure_predictions()
+        room_predictions = detections.room_predictions()
+        if not room_predictions:
+            raise AnalysisPipelineError("room_detection_empty")
         
         # Step 2: Calculate dynamic scale
         pixels_per_meter = calculate_dynamic_scale(structure_predictions, PIXELS_PER_METER)
@@ -308,19 +325,6 @@ Output ONLY the room type name, nothing else."""
             if "window" in item['class'].lower():
                 windows.append(item)
         print(f"Found {len(windows)} windows in the floor plan.")
-        
-        # Step 3: Detect rooms
-        print("2. Detecting rooms (Room Segmentation)...")
-        try:
-            room_result = self.rf.infer(image_path, model_id="room-detection-6nzte/1")
-            room_predictions = room_result.get('predictions', [])
-        except Exception as e:
-            print(f"Room detection failed: {e}")
-            room_predictions = []
-        
-        if not room_predictions:
-            print("No room regions detected!")
-            return {"error": "No rooms detected"}, img
         
         rooms_data = []
         rooms_for_rag = []  # Format for cad_compliance_rag
@@ -382,7 +386,9 @@ Output ONLY the room type name, nothing else."""
                     "y": round(y1 / H, 4),
                     "w": round((x2 - x1) / W, 4),
                     "h": round((y2 - y1) / H, 4)
-                }
+                },
+                "polygon": room.get("polygon", []),
+                "geometryId": room.get("id", f"room-{i+1}"),
             }
             rooms_data.append(room_data)
             
@@ -410,11 +416,7 @@ Output ONLY the room type name, nothing else."""
             print(f"Compliance check complete: {compliance_result['summary']['violations_total']} violations")
         except Exception as e:
             print(f"CAD Compliance RAG error: {e}")
-            compliance_result = {
-                "summary": {"violations_total": 0, "warnings_total": 0},
-                "violations": [],
-                "warnings": []
-            }
+            raise AnalysisPipelineError("compliance_failed") from e
         
         # Step 6: Merge compliance results into room data
         violation_room_ids = {v.get("room_id") for v in compliance_result.get("violations", [])}
@@ -483,6 +485,40 @@ Output ONLY the room type name, nothing else."""
         
         result = {
             "rooms": rooms_data,
+            "geometry": {
+                "provider": detections.provider,
+                "inference_seconds": detections.inference_seconds,
+                "walls": [
+                    [list(point) for point in polygon]
+                    for polygon in detections.wall_polygons
+                ],
+                "doors": [
+                    {
+                        "id": opening.id,
+                        "box": {
+                            "x": opening.box.x,
+                            "y": opening.box.y,
+                            "width": opening.box.width,
+                            "height": opening.box.height,
+                        },
+                        "polygon": [list(point) for point in opening.polygon],
+                    }
+                    for opening in detections.doors
+                ],
+                "windows": [
+                    {
+                        "id": opening.id,
+                        "box": {
+                            "x": opening.box.x,
+                            "y": opening.box.y,
+                            "width": opening.box.width,
+                            "height": opening.box.height,
+                        },
+                        "polygon": [list(point) for point in opening.polygon],
+                    }
+                    for opening in detections.windows
+                ],
+            },
             "score": score,
             "status": "Compliant" if score == 100 else "Non-Compliant",
             "total_rooms": total_rooms,

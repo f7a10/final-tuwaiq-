@@ -1,0 +1,9 @@
+torch>=2.2
+numpy>=1.26
+pillow>=10
+pyyaml>=6
+safetensors>=0.4
+segmentation-models-pytorch==0.5.0
+torchvision>=0.17
+opencv-python>=4.10
+psutil>=7

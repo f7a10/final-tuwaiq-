@@ -20,20 +20,13 @@ from sqlalchemy.orm import Session
 from backend.app.config import UPLOAD_DIR, PROJECT_ROOT
 from backend.app.models.database import get_db, User, Project, SessionLocal, init_db
 from backend.app.auth.dependencies import require_auth
-from backend.app.services.smart_architect import SmartArchitect
+from backend.app.services.smart_architect import AnalysisPipelineError, SmartArchitect
 
 # Import API routers
 from backend.app.api import auth as auth_router
 from backend.app.api import projects as projects_router
 from backend.app.api import chat as chat_router
-
-# Configure Gemini
-import google.generativeai as genai
-if os.getenv("GOOGLE_API_KEY"):
-    genai.configure(api_key=os.getenv("GOOGLE_API_KEY"))
-elif os.getenv("GEMINI_API_KEY"):
-    genai.configure(api_key=os.getenv("GEMINI_API_KEY"))
-
+from backend.app.api import editor as editor_router
 
 # -------------------------------------------------
 # FastAPI App Setup
@@ -57,6 +50,29 @@ architect = SmartArchitect()
 # In-Memory Results Store
 analysis_results = {}
 
+ANALYSIS_ERROR_MESSAGES = {
+    "local_model_missing": "ملف النموذج المحلي لتحليل المخططات غير مثبت. أكمل إعداد النموذج المحلي ثم أعد المحاولة.",
+    "local_model_load_failed": "تعذر تحميل النموذج المحلي لتحليل المخططات. أعد إعداد النموذج ثم حاول مجددًا.",
+    "local_detection_failed": "تعذر على النموذج المحلي تحليل هذا المخطط. لم تُصدر نتيجة للمخطط.",
+    "wall_detection_empty": "لم يتمكن النموذج المحلي من اكتشاف شبكة جدران قابلة للتحليل.",
+    "detector_provider_invalid": "إعداد مزود تحليل المخططات غير صالح. راجع إعدادات التشغيل ثم أعد المحاولة.",
+    "roboflow_api_key_missing": "خدمة التحليل الخارجية مختارة لكنها غير مهيأة. راجع إعدادات التشغيل.",
+    "roboflow_inference_path_missing": "تعذر تجهيز الملف لخدمة التحليل الخارجية. لم تُصدر نتيجة للمخطط.",
+    "provider_credit_exhausted": "نفد رصيد خدمة تحليل المخططات. أضف رصيدًا أو ارفع حد الاستخدام ثم أعد المحاولة.",
+    "structure_detection_failed": "تعذر إكمال اكتشاف الجدران والفتحات. لم تُصدر نتيجة للمخطط.",
+    "room_detection_failed": "تعذر الاتصال بخدمة اكتشاف الغرف. لم تُصدر نتيجة للمخطط.",
+    "room_detection_empty": "لم يتمكن النظام من اكتشاف غرف قابلة للتحليل في الملف المرفوع.",
+    "compliance_failed": "تعذر إكمال فحص المتطلبات. لم تُحسب درجة امتثال للمخطط.",
+    "analysis_failed": "تعذر إكمال التحليل. لم تُصدر نتيجة أو درجة امتثال.",
+}
+
+
+def analysis_error_details(error: Exception) -> tuple[str, str]:
+    code = str(error) if isinstance(error, AnalysisPipelineError) else "analysis_failed"
+    if code not in ANALYSIS_ERROR_MESSAGES:
+        code = "analysis_failed"
+    return code, ANALYSIS_ERROR_MESSAGES[code]
+
 
 # -------------------------------------------------
 # Include API Routers
@@ -64,6 +80,7 @@ analysis_results = {}
 app.include_router(auth_router.router)
 app.include_router(projects_router.router)
 app.include_router(chat_router.router)
+app.include_router(editor_router.router)
 
 
 # -------------------------------------------------
@@ -109,6 +126,8 @@ def process_floor_plan(task_id: str, file_path: str, settings: dict, base_url: s
         project = db.query(Project).filter(Project.task_id == task_id).first()
         if project:
             project.status = "completed"
+            project.analysis_error_code = None
+            project.analysis_error_message = None
             project.analyzed_image_url = analyzed_url
             project.compliance_status = compliance_status
             project.compliance_score = score
@@ -133,17 +152,27 @@ def process_floor_plan(task_id: str, file_path: str, settings: dict, base_url: s
         }
         
     except Exception as e:
-        print(f"Analysis failed: {e}")
+        error_code, error_message = analysis_error_details(e)
+        print(f"Analysis failed: {error_code}")
         
         # Update project status to failed
         project = db.query(Project).filter(Project.task_id == task_id).first()
         if project:
             project.status = "failed"
+            project.analysis_error_code = error_code
+            project.analysis_error_message = error_message
+            project.compliance_status = None
+            project.compliance_score = None
+            project.rooms_count = 0
+            project.compliant_rooms = 0
+            project.violations_count = 0
+            project.rooms_data = None
             db.commit()
         
         analysis_results[task_id] = {
             "status": "failed",
-            "error": str(e)
+            "error_code": error_code,
+            "error": error_message,
         }
     finally:
         db.close()
@@ -208,20 +237,11 @@ async def upload_plan(
     }
 
 
-@app.get("/api/analysis/{task_id}")
-async def get_analysis(task_id: str):
-    """Get analysis status and results."""
-    result = analysis_results.get(task_id)
-    if not result:
-        return JSONResponse({"error": "Task not found"}, status_code=404)
-    return result
-
-
 # -------------------------------------------------
 # Static Files & SPA Serving
 # -------------------------------------------------
 # Dist and assets paths
-DIST_DIR = os.path.join(PROJECT_ROOT, "dist")
+DIST_DIR = os.path.join(PROJECT_ROOT, "frontend", "dist")
 ASSETS_DIR = os.path.join(DIST_DIR, "assets")
 
 # Mount assets first
@@ -230,15 +250,6 @@ if os.path.exists(ASSETS_DIR):
 
 # Mount uploads directory for serving images
 app.mount("/uploads", StaticFiles(directory=UPLOAD_DIR), name="uploads")
-
-
-@app.get("/generator")
-async def serve_generator():
-    """Serve the standalone CAD Generator page."""
-    path = os.path.join(PROJECT_ROOT, "backend", "app", "static", "generator.html")
-    if os.path.exists(path):
-        return FileResponse(path)
-    return "Generator file not found."
 
 
 @app.get("/{full_path:path}")

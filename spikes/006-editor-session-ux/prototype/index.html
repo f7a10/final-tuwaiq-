@@ -1,0 +1,168 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>عماد — اختبار تجربة المحرر</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Arabic:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="styles.css?v=2">
+</head>
+<body>
+  <header class="topbar">
+    <div class="brand" aria-label="عماد"><span aria-hidden="true">ع</span><strong>عماد</strong></div>
+    <div class="project-title"><strong>مخطط منزل العائلة</strong><small id="revisionLabel">النسخة المعتمدة</small></div>
+    <div class="top-actions">
+      <button id="undoBtn" class="quiet" type="button" disabled>تراجع</button>
+      <button id="redoBtn" class="quiet" type="button" disabled>إعادة</button>
+      <button id="confidenceBtn" class="status-button" type="button" aria-describedby="confidenceHint">المقياس مؤكد 96%</button>
+    </div>
+  </header>
+
+  <main class="shell">
+    <aside class="panel selection-panel" aria-labelledby="selectionTitle">
+      <p class="eyebrow">1 · اختر العنصر</p>
+      <h1 id="selectionTitle">ماذا تريد أن تعدّل؟</h1>
+      <p class="helper">ابدأ بالغرفة، ثم الجدار، ثم الباب أو النافذة عند الحاجة.</p>
+
+      <nav class="breadcrumb" aria-label="مسار الاختيار" id="breadcrumb">
+        <span>لم تختر عنصراً بعد</span>
+      </nav>
+
+      <div class="selection-list" aria-label="عناصر المخطط">
+        <button type="button" data-select="room" data-id="left" data-label="غرفة المعيشة">
+          <span>غرفة المعيشة</span><small>12.0 م²</small>
+        </button>
+        <button type="button" data-select="room" data-id="right" data-label="غرفة النوم">
+          <span>غرفة النوم</span><small>12.0 م²</small>
+        </button>
+        <button type="button" data-select="wall" data-id="shared" data-label="الجدار المشترك">
+          <span>الجدار المشترك</span><small>يؤثر في غرفتين</small>
+        </button>
+        <button type="button" data-select="opening" data-id="window" data-label="النافذة">
+          <span>النافذة</span><small>على الجدار العلوي</small>
+        </button>
+      </div>
+
+      <div id="selectionHelp" class="inline-message info" role="status">
+        يمكنك أيضاً تحديد العناصر مباشرة من المخطط.
+      </div>
+    </aside>
+
+    <section class="workspace" aria-labelledby="planTitle">
+      <div class="workspace-toolbar">
+        <div>
+          <h2 id="planTitle">المخطط</h2>
+          <span id="viewMode">الحالة المعتمدة</span>
+        </div>
+        <div class="toolbar-actions">
+          <button id="compareBtn" type="button" class="quiet" disabled>إظهار قبل / بعد</button>
+          <button id="resetBtn" type="button" class="quiet">إعادة الاختبار</button>
+        </div>
+      </div>
+
+      <div class="canvas-wrap" id="canvasWrap">
+        <svg id="planSvg" viewBox="0 0 1000 600" role="img" aria-labelledby="planSvgTitle planSvgDesc">
+          <title id="planSvgTitle">مخطط تجريبي لغرفتين</title>
+          <desc id="planSvgDesc">غرفة معيشة وغرفة نوم يفصل بينهما جدار مشترك، مع نافذة قابلة للتحريك.</desc>
+          <rect class="paper" x="90" y="70" width="820" height="460" rx="8"/>
+          <g class="current-layer" aria-label="الوضع الحالي">
+            <rect id="roomLeft" class="room-hit" tabindex="0" role="button" aria-label="اختر غرفة المعيشة" x="120" y="100" width="380" height="400"/>
+            <rect id="roomRight" class="room-hit" tabindex="0" role="button" aria-label="اختر غرفة النوم" x="500" y="100" width="380" height="400"/>
+            <path class="outer-wall" d="M120 500V100H880V500H120Z"/>
+            <line id="currentWall" class="wall current-wall" tabindex="0" role="button" aria-label="اختر الجدار المشترك" x1="500" y1="100" x2="500" y2="500"/>
+            <line id="currentWindow" class="opening current-opening" tabindex="0" role="button" aria-label="اختر النافذة" x1="230" y1="100" x2="350" y2="100"/>
+          </g>
+          <g id="proposalLayer" class="proposal-layer" aria-label="المقترح" hidden>
+            <line id="proposalWall" class="wall proposal-wall" x1="500" y1="100" x2="500" y2="500"/>
+            <line id="proposalWindow" class="opening proposal-opening" x1="230" y1="100" x2="350" y2="100"/>
+            <path id="movementArrow" class="movement-arrow" d="M500 290H550"/>
+          </g>
+          <text id="leftRoomLabel" class="room-label" x="310" y="285">غرفة المعيشة · 12.0 م²</text>
+          <text id="rightRoomLabel" class="room-label" x="690" y="285">غرفة النوم · 12.0 م²</text>
+          <text class="endpoint-label" x="205" y="82">الطرف أ</text>
+          <text class="endpoint-label" x="365" y="82">الطرف ب</text>
+        </svg>
+        <div id="canvasBadge" class="canvas-badge">الحالة المعتمدة</div>
+      </div>
+
+      <div class="workspace-status" aria-live="polite">
+        <span id="saveStatus">محفوظ محلياً</span>
+        <span id="historyStatus">العملية 0 من 0</span>
+        <span id="interactionStatus">0 تفاعل</span>
+      </div>
+    </section>
+
+    <aside class="panel action-panel" aria-labelledby="actionTitle">
+      <p class="eyebrow">2 · عدّل وراجع</p>
+      <h2 id="actionTitle">طريقة التعديل</h2>
+
+      <section class="edit-section" aria-labelledby="numericTitle">
+        <h3 id="numericTitle">تحريك الجدار بالأرقام</h3>
+        <label for="wallOffset">مقدار الحركة بالسنتيمتر</label>
+        <div class="input-row">
+          <input id="wallOffset" inputmode="decimal" value="50" aria-describedby="rangeText numericError">
+          <span>سم</span>
+          <button id="previewNumberBtn" type="button">إنشاء معاينة</button>
+        </div>
+        <small id="rangeText">المجال المسموح في هذا النموذج: من −150 إلى 150 سم.</small>
+        <div id="numericError" class="field-error" role="alert" hidden></div>
+      </section>
+
+      <section class="edit-section" aria-labelledby="aiTitle">
+        <h3 id="aiTitle">اكتب ما تريد</h3>
+        <label class="sr-only" for="aiPrompt">طلب التعديل</label>
+        <textarea id="aiPrompt" rows="3" placeholder="مثال: حرّك النافذة 20 سم نحو الطرف أ"></textarea>
+        <div class="button-row">
+          <button id="sendPromptBtn" type="button">فسّر الطلب</button>
+          <button id="plannerBtn" type="button" class="quiet">تحسين المخطط بالكامل</button>
+        </div>
+        <div id="clarificationBox" class="clarification" hidden>
+          <strong id="clarificationQuestion"></strong>
+          <div id="clarificationOptions" class="option-row"></div>
+        </div>
+      </section>
+
+      <section id="previewPanel" class="preview-panel" aria-labelledby="previewTitle" hidden>
+        <div class="preview-heading">
+          <div>
+            <p class="eyebrow">3 · المعاينة</p>
+            <h3 id="previewTitle">راجع التغيير</h3>
+          </div>
+          <span id="previewStateBadge">جاهزة</span>
+        </div>
+        <p class="not-approved">لم يتم اعتماد التغيير بعد.</p>
+        <ul id="diffList" class="diff-list"></ul>
+        <div id="previewWarning" class="inline-message warning" hidden></div>
+        <div class="approval-actions">
+          <button id="approveBtn" type="button" class="primary">اعتماد التعديل</button>
+          <button id="discardPreviewBtn" type="button" class="quiet">إلغاء المعاينة</button>
+        </div>
+      </section>
+
+      <div id="globalMessage" class="inline-message info" role="status" aria-live="polite">
+        اختر غرفة للبدء.
+      </div>
+      <p id="confidenceHint" class="fine-print">الأبعاد المترية لا تعتمد عندما يكون المقياس تقريبياً.</p>
+    </aside>
+  </main>
+
+  <dialog id="plannerDialog" aria-labelledby="plannerTitle">
+    <form method="dialog">
+      <div class="dialog-head">
+        <div><p class="eyebrow">اقتراحات مترابطة</p><h2 id="plannerTitle">اختر هدف التحسين</h2></div>
+        <button value="cancel" class="quiet" aria-label="إغلاق">إغلاق</button>
+      </div>
+      <p>كل اقتراح يدخل دورة المعاينة نفسها، ولن يغيّر النسخة المعتمدة مباشرة.</p>
+      <div class="candidate-grid">
+        <button type="button" data-candidate="minimal" data-offset="500"><strong>أقل تغيير</strong><span>تحريك الجدار 50 سم</span><small>تغيير محدود</small></button>
+        <button type="button" data-candidate="balanced" data-offset="1000"><strong>تحسين متوازن</strong><span>تحريك الجدار 100 سم</span><small>أفضل توازن للمساحة</small></button>
+        <button type="button" data-candidate="priority" data-offset="1500"><strong>أولوية غرفة المعيشة</strong><span>تحريك الجدار 150 سم</span><small>تغيير أكبر</small></button>
+      </div>
+    </form>
+  </dialog>
+
+  <script type="module" src="app.js?v=2"></script>
+</body>
+</html>

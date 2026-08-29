@@ -7,12 +7,12 @@ export default {
     theme: {
         extend: {
             colors: {
-                primary: '#0F766E', // Teal 700
-                secondary: '#334155', // Slate 700
-                accent: '#F59E0B',    // Amber 500
+                primary: '#176B5B',
+                secondary: '#3F4943',
+                accent: '#E9F3EF',
             },
             fontFamily: {
-                sans: ['Cairo', 'sans-serif'],
+                sans: ['IBM Plex Sans Arabic', 'Segoe UI', 'Tahoma', 'Arial', 'sans-serif'],
             },
         },
     },
