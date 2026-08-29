@@ -1,352 +1,194 @@
 <template>
-  <div class="min-h-screen flex bg-gray-100" dir="rtl">
-    
-    <!-- Sidebar -->
-    <aside class="w-64 bg-primary text-white flex flex-col shadow-xl">
-      
-      <!-- Logo -->
-      <div class="p-6 border-b border-white/10">
-        <div class="flex items-center gap-3">
-          <div class="w-10 h-10 bg-white/20 rounded-xl flex items-center justify-center">
-            <span class="text-xl font-bold">ع</span>
-          </div>
-          <div>
-            <h1 class="font-bold text-lg">عماد</h1>
-            <p class="text-xs opacity-75">لوحة الإدارة</p>
-          </div>
-        </div>
-      </div>
+  <div class="app-shell" dir="rtl">
+    <AppHeader />
 
-      <!-- Navigation -->
-      <nav class="flex-1 p-4 space-y-1">
-        <button 
-          v-for="item in navItems" 
-          :key="item.id"
-          @click="activeSection = item.id"
-          :class="[
-            'w-full flex items-center gap-3 px-4 py-3 rounded-xl transition text-right',
-            activeSection === item.id 
-              ? 'bg-white/20 text-white' 
-              : 'text-white/70 hover:bg-white/10 hover:text-white'
-          ]"
-        >
-          <i :class="item.icon" class="w-5 text-center"></i>
-          <span class="font-medium">{{ item.label }}</span>
-        </button>
-      </nav>
-
-      <!-- User Info -->
-      <div class="p-4 border-t border-white/10">
-        <div class="flex items-center gap-3">
-          <div class="w-10 h-10 bg-accent rounded-full flex items-center justify-center text-primary font-bold">
-            م
-          </div>
-          <div class="flex-1">
-            <div class="font-bold text-sm">مدير النظام</div>
-            <div class="text-xs opacity-75">admin@emad.sa</div>
-          </div>
-          <button @click="logout" class="text-white/50 hover:text-white transition">
-            <i class="fas fa-sign-out-alt"></i>
-          </button>
-        </div>
-      </div>
-
-    </aside>
-
-    <!-- Main Content -->
-    <main class="flex-1 overflow-auto">
-      
-      <!-- Header -->
-      <header class="bg-white shadow-sm px-8 py-5 flex items-center justify-between">
+    <main class="admin-page page-container">
+      <header class="admin-heading">
         <div>
-          <h2 class="text-2xl font-bold text-gray-800">{{ currentSection.label }}</h2>
-          <p class="text-gray-500 text-sm">إدارة {{ currentSection.label }} في النظام</p>
+          <span class="eyebrow"><i class="fas fa-shield-halved" aria-hidden="true"></i> الإدارة</span>
+          <h1>المستخدمون والوصول</h1>
+          <p>قائمة الحسابات الفعلية التي أعادها الخادم. لا تُعرض بيانات تجريبية أو تنبيهات مصطنعة.</p>
         </div>
-        <div class="flex items-center gap-4">
-          <button class="p-2 text-gray-400 hover:text-primary transition relative">
-            <i class="fas fa-bell text-xl"></i>
-            <span class="absolute top-0 right-0 w-2 h-2 bg-red-500 rounded-full"></span>
-          </button>
-          <button @click="refreshData" class="px-4 py-2 bg-gray-100 hover:bg-gray-200 rounded-lg transition text-gray-700">
-            <i class="fas fa-sync-alt ml-2"></i>
-            تحديث
-          </button>
-        </div>
+        <button type="button" class="button button--secondary" :disabled="loading" @click="loadUsers">
+          <i :class="loading ? 'fas fa-circle-notch fa-spin' : 'fas fa-rotate'" aria-hidden="true"></i>
+          تحديث
+        </button>
       </header>
 
-      <!-- Content Area -->
-      <div class="p-8">
+      <section class="admin-summary" aria-label="ملخص المستخدمين">
+        <article class="surface admin-summary__primary">
+          <span>الحسابات الظاهرة</span>
+          <strong>{{ users.length }}</strong>
+          <p>إجمالي النتائج المسترجعة من `/api/auth/users`.</p>
+        </article>
+        <dl class="surface admin-summary__facts">
+          <div><dt>نشط</dt><dd>{{ activeUsers }}</dd></div>
+          <div><dt>مديرو النظام</dt><dd>{{ adminUsers }}</dd></div>
+          <div><dt>المشاريع المسجلة</dt><dd>{{ totalPlans }}</dd></div>
+        </dl>
+      </section>
 
-        <!-- Users Section -->
-        <div v-if="activeSection === 'users'">
-          
-          <!-- Stats Cards -->
-          <div class="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
-            <div class="bg-white rounded-2xl p-6 shadow-sm border border-gray-100">
-              <div class="flex items-center justify-between">
-                <div>
-                  <p class="text-gray-500 text-sm">إجمالي المستخدمين</p>
-                  <p class="text-3xl font-bold text-gray-800 mt-1">{{ users.length }}</p>
-                </div>
-                <div class="w-12 h-12 bg-primary/10 rounded-xl flex items-center justify-center text-primary">
-                  <i class="fas fa-users text-xl"></i>
-                </div>
-              </div>
-            </div>
-            <div class="bg-white rounded-2xl p-6 shadow-sm border border-gray-100">
-              <div class="flex items-center justify-between">
-                <div>
-                  <p class="text-gray-500 text-sm">المستخدمون النشطون</p>
-                  <p class="text-3xl font-bold text-green-600 mt-1">{{ activeUsers }}</p>
-                </div>
-                <div class="w-12 h-12 bg-green-100 rounded-xl flex items-center justify-center text-green-600">
-                  <i class="fas fa-user-check text-xl"></i>
-                </div>
-              </div>
-            </div>
-            <div class="bg-white rounded-2xl p-6 shadow-sm border border-gray-100">
-              <div class="flex items-center justify-between">
-                <div>
-                  <p class="text-gray-500 text-sm">المكاتب الهندسية</p>
-                  <p class="text-3xl font-bold text-blue-600 mt-1">{{ officeUsers }}</p>
-                </div>
-                <div class="w-12 h-12 bg-blue-100 rounded-xl flex items-center justify-center text-blue-600">
-                  <i class="fas fa-building text-xl"></i>
-                </div>
-              </div>
-            </div>
-            <div class="bg-white rounded-2xl p-6 shadow-sm border border-gray-100">
-              <div class="flex items-center justify-between">
-                <div>
-                  <p class="text-gray-500 text-sm">المخططات المحللة</p>
-                  <p class="text-3xl font-bold text-accent mt-1">{{ totalPlans }}</p>
-                </div>
-                <div class="w-12 h-12 bg-accent/20 rounded-xl flex items-center justify-center text-primary">
-                  <i class="fas fa-file-alt text-xl"></i>
-                </div>
-              </div>
-            </div>
+      <section class="surface users-panel" aria-labelledby="users-title">
+        <header class="users-toolbar">
+          <div>
+            <h2 id="users-title">قائمة المستخدمين</h2>
+            <p>ابحث بالاسم أو البريد. الإجراءات المدمرة غير مفعلة قبل إضافة تأكيد ومراجعة مناسبة.</p>
           </div>
+          <label class="search-field">
+            <span class="sr-only">البحث عن مستخدم</span>
+            <i class="fas fa-magnifying-glass" aria-hidden="true"></i>
+            <input v-model.trim="searchQuery" type="search" placeholder="بحث بالاسم أو البريد">
+          </label>
+        </header>
 
-          <!-- Users Table -->
-          <div class="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
-            
-            <!-- Table Header -->
-            <div class="px-6 py-4 border-b border-gray-100 flex items-center justify-between">
-              <h3 class="font-bold text-gray-800">قائمة المستخدمين</h3>
-              <div class="flex items-center gap-3">
-                <div class="relative">
-                  <i class="fas fa-search absolute right-3 top-1/2 -translate-y-1/2 text-gray-400"></i>
-                  <input 
-                    v-model="searchQuery"
-                    type="text" 
-                    placeholder="بحث..."
-                    class="pr-10 pl-4 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:border-primary"
-                  >
-                </div>
-              </div>
-            </div>
-
-            <!-- Table -->
-            <div class="overflow-x-auto">
-              <table class="w-full">
-                <thead class="bg-gray-50">
-                  <tr>
-                    <th class="px-6 py-4 text-right text-xs font-bold text-gray-500 uppercase tracking-wider">ID</th>
-                    <th class="px-6 py-4 text-right text-xs font-bold text-gray-500 uppercase tracking-wider">الاسم</th>
-                    <th class="px-6 py-4 text-right text-xs font-bold text-gray-500 uppercase tracking-wider">البريد الإلكتروني</th>
-                    <th class="px-6 py-4 text-right text-xs font-bold text-gray-500 uppercase tracking-wider">الدور</th>
-                    <th class="px-6 py-4 text-right text-xs font-bold text-gray-500 uppercase tracking-wider">المخططات</th>
-                    <th class="px-6 py-4 text-right text-xs font-bold text-gray-500 uppercase tracking-wider">الحالة</th>
-                    <th class="px-6 py-4 text-right text-xs font-bold text-gray-500 uppercase tracking-wider">الإجراءات</th>
-                  </tr>
-                </thead>
-                <tbody class="divide-y divide-gray-100">
-                  <tr v-for="user in filteredUsers" :key="user.id" class="hover:bg-gray-50 transition">
-                    <td class="px-6 py-4 text-sm text-gray-500 font-mono">#{{ user.id }}</td>
-                    <td class="px-6 py-4">
-                      <div class="flex items-center gap-3">
-                        <div class="w-10 h-10 bg-primary/10 rounded-full flex items-center justify-center text-primary font-bold">
-                          {{ user.name.charAt(0) }}
-                        </div>
-                        <span class="font-medium text-gray-800">{{ user.name }}</span>
-                      </div>
-                    </td>
-                    <td class="px-6 py-4 text-sm text-gray-600">{{ user.email }}</td>
-                    <td class="px-6 py-4">
-                      <span 
-                        :class="[
-                          'px-3 py-1 rounded-full text-xs font-bold',
-                          user.role === 'admin' ? 'bg-purple-100 text-purple-700' :
-                          user.role === 'office' ? 'bg-blue-100 text-blue-700' :
-                          'bg-gray-100 text-gray-700'
-                        ]"
-                      >
-                        {{ getRoleLabel(user.role) }}
-                      </span>
-                    </td>
-                    <td class="px-6 py-4 text-sm font-bold text-gray-800">{{ user.plansCount }}</td>
-                    <td class="px-6 py-4">
-                      <span 
-                        :class="[
-                          'px-3 py-1 rounded-full text-xs font-bold',
-                          user.status === 'active' ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'
-                        ]"
-                      >
-                        {{ user.status === 'active' ? 'نشط' : 'محظور' }}
-                      </span>
-                    </td>
-                    <td class="px-6 py-4">
-                      <div class="flex items-center gap-2">
-                        <button 
-                          @click="viewUser(user)"
-                          class="p-2 text-gray-400 hover:text-primary hover:bg-primary/10 rounded-lg transition"
-                          title="عرض الملف"
-                        >
-                          <i class="fas fa-eye"></i>
-                        </button>
-                        <button 
-                          @click="deleteUser(user)"
-                          class="p-2 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition"
-                          title="حذف المستخدم"
-                        >
-                          <i class="fas fa-trash"></i>
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                </tbody>
-              </table>
-            </div>
-
-            <!-- Empty State -->
-            <div v-if="filteredUsers.length === 0" class="text-center py-12">
-              <i class="fas fa-users text-4xl text-gray-300 mb-4"></i>
-              <p class="text-gray-500">لا يوجد مستخدمين</p>
-            </div>
-
-          </div>
+        <div v-if="loading" class="table-state" role="status">
+          <i class="fas fa-circle-notch fa-spin" aria-hidden="true"></i>
+          <p>جاري تحميل المستخدمين…</p>
         </div>
 
-        <!-- Projects Section -->
-        <div v-else-if="activeSection === 'projects'" class="text-center py-20">
-          <i class="fas fa-folder-open text-6xl text-gray-300 mb-4"></i>
-          <h3 class="text-xl font-bold text-gray-600">قسم المشاريع</h3>
-          <p class="text-gray-500">قريباً...</p>
+        <div v-else-if="error" class="table-state table-state--error" role="alert">
+          <i class="fas fa-circle-exclamation" aria-hidden="true"></i>
+          <h3>تعذر تحميل القائمة</h3>
+          <p>{{ error }}</p>
+          <button type="button" class="button button--primary button--small" @click="loadUsers">إعادة المحاولة</button>
         </div>
 
-        <!-- Settings Section -->
-        <div v-else-if="activeSection === 'settings'" class="text-center py-20">
-          <i class="fas fa-cog text-6xl text-gray-300 mb-4"></i>
-          <h3 class="text-xl font-bold text-gray-600">الإعدادات</h3>
-          <p class="text-gray-500">قريباً...</p>
+        <div v-else-if="filteredUsers.length" class="users-table-wrap">
+          <table class="users-table">
+            <thead>
+              <tr>
+                <th scope="col">المستخدم</th>
+                <th scope="col">الصلاحية</th>
+                <th scope="col">المشاريع</th>
+                <th scope="col">الحالة</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr v-for="user in filteredUsers" :key="user.id">
+                <td>
+                  <div class="user-cell">
+                    <span class="user-avatar" aria-hidden="true">{{ (user.name || 'م').charAt(0) }}</span>
+                    <div>
+                      <strong>{{ user.name || 'مستخدم دون اسم' }}</strong>
+                      <span>{{ user.email || 'لا يوجد بريد' }}</span>
+                    </div>
+                  </div>
+                </td>
+                <td><span class="role-label">{{ roleLabel(user.role) }}</span></td>
+                <td>{{ Number.isFinite(Number(user.plansCount)) ? Number(user.plansCount) : '—' }}</td>
+                <td>
+                  <span class="account-status" :class="user.status === 'active' ? 'account-status--active' : 'account-status--blocked'">
+                    <i :class="user.status === 'active' ? 'fas fa-circle-check' : 'fas fa-ban'" aria-hidden="true"></i>
+                    {{ user.status === 'active' ? 'نشط' : 'موقوف' }}
+                  </span>
+                </td>
+              </tr>
+            </tbody>
+          </table>
         </div>
 
-      </div>
+        <div v-else class="table-state">
+          <i class="fas fa-users" aria-hidden="true"></i>
+          <h3>{{ searchQuery ? 'لا توجد نتيجة مطابقة' : 'لا يوجد مستخدمون' }}</h3>
+          <p>{{ searchQuery ? 'جرّب اسمًا أو بريدًا مختلفًا.' : 'لم يُرجع الخادم أي حسابات.' }}</p>
+        </div>
+      </section>
     </main>
-
-    <!-- User Detail Modal -->
-    <div v-if="selectedUser" class="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4" @click.self="selectedUser = null">
-      <div class="bg-white rounded-2xl shadow-2xl w-full max-w-md p-6">
-        <div class="text-center mb-6">
-          <div class="w-20 h-20 bg-primary/10 rounded-full flex items-center justify-center text-primary text-3xl font-bold mx-auto mb-4">
-            {{ selectedUser.name.charAt(0) }}
-          </div>
-          <h3 class="text-xl font-bold text-gray-800">{{ selectedUser.name }}</h3>
-          <p class="text-gray-500">{{ selectedUser.email }}</p>
-        </div>
-        <div class="space-y-3 text-sm">
-          <div class="flex justify-between py-2 border-b">
-            <span class="text-gray-500">الدور</span>
-            <span class="font-bold">{{ getRoleLabel(selectedUser.role) }}</span>
-          </div>
-          <div class="flex justify-between py-2 border-b">
-            <span class="text-gray-500">المخططات المحللة</span>
-            <span class="font-bold">{{ selectedUser.plansCount }}</span>
-          </div>
-          <div class="flex justify-between py-2 border-b">
-            <span class="text-gray-500">الحالة</span>
-            <span :class="selectedUser.status === 'active' ? 'text-green-600' : 'text-red-600'" class="font-bold">
-              {{ selectedUser.status === 'active' ? 'نشط' : 'محظور' }}
-            </span>
-          </div>
-        </div>
-        <button @click="selectedUser = null" class="w-full mt-6 py-3 bg-gray-100 hover:bg-gray-200 rounded-xl font-bold text-gray-700 transition">
-          إغلاق
-        </button>
-      </div>
-    </div>
-
   </div>
 </template>
 
 <script setup>
-import { ref, computed } from 'vue';
-import { useRouter } from 'vue-router';
+import { computed, onMounted, ref } from 'vue'
 
-const router = useRouter();
+import AppHeader from '../../components/AppHeader.vue'
+import { api } from '../../services/api'
 
-const activeSection = ref('users');
-const searchQuery = ref('');
-const selectedUser = ref(null);
-
-const navItems = [
-  { id: 'users', label: 'المستخدمين', icon: 'fas fa-users' },
-  { id: 'projects', label: 'المشاريع', icon: 'fas fa-folder' },
-  { id: 'settings', label: 'الإعدادات', icon: 'fas fa-cog' }
-];
-
-const currentSection = computed(() => navItems.find(i => i.id === activeSection.value));
-
-// Mock users data
-const users = ref([
-  { id: 1, name: 'أحمد محمد', email: 'ahmed@example.com', role: 'admin', plansCount: 45, status: 'active' },
-  { id: 2, name: 'سارة الأحمد', email: 'sara@example.com', role: 'office', plansCount: 128, status: 'active' },
-  { id: 3, name: 'خالد العتيبي', email: 'khaled@example.com', role: 'personal', plansCount: 12, status: 'active' },
-  { id: 4, name: 'مريم الشمري', email: 'mariam@example.com', role: 'office', plansCount: 67, status: 'active' },
-  { id: 5, name: 'فهد القحطاني', email: 'fahad@example.com', role: 'personal', plansCount: 5, status: 'banned' },
-]);
+const users = ref([])
+const loading = ref(true)
+const error = ref('')
+const searchQuery = ref('')
 
 const filteredUsers = computed(() => {
-  if (!searchQuery.value) return users.value;
-  const query = searchQuery.value.toLowerCase();
-  return users.value.filter(u => 
-    u.name.toLowerCase().includes(query) || 
-    u.email.toLowerCase().includes(query)
-  );
-});
+  const query = searchQuery.value.toLocaleLowerCase('ar')
+  if (!query) return users.value
+  return users.value.filter((user) => (
+    String(user.name || '').toLocaleLowerCase('ar').includes(query)
+    || String(user.email || '').toLocaleLowerCase('en').includes(query)
+  ))
+})
+const activeUsers = computed(() => users.value.filter((user) => user.status === 'active').length)
+const adminUsers = computed(() => users.value.filter((user) => user.role === 'admin').length)
+const totalPlans = computed(() => users.value.reduce((total, user) => (
+  total + (Number.isFinite(Number(user.plansCount)) ? Number(user.plansCount) : 0)
+), 0))
 
-const activeUsers = computed(() => users.value.filter(u => u.status === 'active').length);
-const officeUsers = computed(() => users.value.filter(u => u.role === 'office').length);
-const totalPlans = computed(() => users.value.reduce((sum, u) => sum + u.plansCount, 0));
-
-const getRoleLabel = (role) => {
-  const labels = {
-    admin: 'مدير',
-    office: 'مكتب هندسي',
-    personal: 'شخصي'
-  };
-  return labels[role] || role;
-};
-
-const viewUser = (user) => {
-  selectedUser.value = user;
-};
-
-const deleteUser = (user) => {
-  if (confirm(`هل أنت متأكد من حذف "${user.name}"?`)) {
-    users.value = users.value.filter(u => u.id !== user.id);
+async function loadUsers() {
+  loading.value = true
+  error.value = ''
+  try {
+    const data = await api.admin.users.list()
+    users.value = Array.isArray(data) ? data : []
+  } catch (requestError) {
+    error.value = requestError.message || 'تعذر الاتصال بالخادم.'
+    users.value = []
+  } finally {
+    loading.value = false
   }
-};
+}
 
-const refreshData = () => {
-  // Refresh logic
-  console.log('Refreshing data...');
-};
+function roleLabel(role) {
+  return {
+    admin: 'مدير النظام',
+    office: 'مكتب هندسي',
+    customer: 'مالك منزل',
+    personal: 'مالك منزل',
+  }[role] || 'غير محدد'
+}
 
-const logout = () => {
-  localStorage.removeItem('auth_token');
-  localStorage.removeItem('user');
-  router.push('/login');
-};
+onMounted(loadUsers)
 </script>
+
+<style scoped>
+.admin-page { padding-block: clamp(1.4rem, 3vw, 2.6rem); }
+.admin-heading { display: flex; align-items: end; justify-content: space-between; gap: 1rem; margin-bottom: 1.25rem; }
+.admin-heading h1, .admin-heading p, .admin-summary p, .users-toolbar h2, .users-toolbar p, .table-state h3, .table-state p { margin: 0; }
+.admin-heading h1 { margin-top: .55rem; font-size: clamp(1.55rem, 4vw, 2.2rem); letter-spacing: -.035em; }
+.admin-heading p { margin-top: .35rem; color: var(--emad-muted); font-size: .78rem; }
+.admin-summary { display: grid; grid-template-columns: minmax(0, 1fr) minmax(26rem, 1fr); gap: 1rem; margin-bottom: 1rem; }
+.admin-summary__primary, .admin-summary__facts { padding: 1.1rem 1.2rem; }
+.admin-summary__primary span, .admin-summary__facts dt { color: var(--emad-muted); font-size: .67rem; }
+.admin-summary__primary strong { display: block; margin-top: .2rem; font-size: 1.35rem; }
+.admin-summary__primary p { margin-top: .2rem; color: var(--emad-muted); font-size: .68rem; }
+.admin-summary__facts { display: grid; grid-template-columns: repeat(3, 1fr); margin-block: 0; }
+.admin-summary__facts div { padding-inline: .9rem; border-left: 1px solid var(--emad-line); }
+.admin-summary__facts div:last-child { border-left: 0; }
+.admin-summary__facts dd { margin: .25rem 0 0; font-size: 1rem; font-weight: 760; }
+.users-panel { overflow: hidden; }
+.users-toolbar { display: flex; align-items: center; justify-content: space-between; gap: 1rem; padding: 1rem 1.15rem; border-bottom: 1px solid var(--emad-line); }
+.users-toolbar h2 { font-size: .92rem; }
+.users-toolbar p { margin-top: .2rem; color: var(--emad-muted); font-size: .66rem; }
+.search-field { position: relative; width: min(100%, 18rem); }
+.search-field i { position: absolute; top: 50%; right: .75rem; color: var(--emad-muted); transform: translateY(-50%); }
+.search-field input { width: 100%; min-height: 44px; padding: .65rem 2.25rem .65rem .75rem; border: 1px solid var(--emad-line-strong); border-radius: .65rem; background: var(--emad-surface); color: var(--emad-ink); font: inherit; font-size: .72rem; }
+.search-field input:focus { border-color: var(--emad-accent); outline: 3px solid var(--emad-focus); }
+.users-table-wrap { overflow-x: auto; }
+.users-table { width: 100%; border-collapse: collapse; font-size: .74rem; }
+.users-table th { padding: .75rem 1rem; background: var(--emad-surface-subtle); color: var(--emad-muted); font-size: .64rem; font-weight: 700; text-align: right; }
+.users-table td { padding: .85rem 1rem; border-top: 1px solid var(--emad-line); color: var(--emad-ink-soft); }
+.user-cell { display: flex; align-items: center; gap: .7rem; min-width: 15rem; }
+.user-avatar { display: grid; width: 2.3rem; height: 2.3rem; flex: 0 0 auto; place-items: center; border-radius: .6rem; background: var(--emad-accent-soft); color: var(--emad-accent-dark); font-weight: 760; }
+.user-cell strong, .user-cell span { display: block; }
+.user-cell strong { color: var(--emad-ink); font-size: .76rem; }
+.user-cell div > span { margin-top: .1rem; color: var(--emad-muted); font-size: .64rem; }
+.role-label { display: inline-flex; min-height: 1.8rem; align-items: center; padding-inline: .65rem; border-radius: 99px; background: var(--emad-surface-subtle); font-size: .64rem; font-weight: 700; white-space: nowrap; }
+.account-status { display: inline-flex; min-height: 1.8rem; align-items: center; gap: .35rem; padding-inline: .6rem; border: 1px solid; border-radius: 99px; font-size: .64rem; font-weight: 700; white-space: nowrap; }
+.account-status--active { border-color: #badbcf; background: #eef8f4; color: var(--emad-accent-dark); }
+.account-status--blocked { border-color: #ecc3bf; background: #fff2f1; color: var(--emad-danger); }
+.table-state { display: grid; min-height: 18rem; place-items: center; align-content: center; gap: .5rem; padding: 1.5rem; color: var(--emad-muted); text-align: center; }
+.table-state > i { font-size: 1.5rem; }
+.table-state h3 { color: var(--emad-ink); font-size: .84rem; }
+.table-state p { max-width: 25rem; font-size: .7rem; }
+.table-state--error > i { color: var(--emad-danger); }
+@media (max-width: 780px) { .admin-heading, .users-toolbar { align-items: stretch; flex-direction: column; } .admin-summary { grid-template-columns: 1fr; } .search-field { width: 100%; } }
+@media (max-width: 520px) { .admin-summary__facts { grid-template-columns: 1fr; } .admin-summary__facts div { padding: .65rem 0; border-bottom: 1px solid var(--emad-line); border-left: 0; } .admin-summary__facts div:last-child { border-bottom: 0; } }
+</style>

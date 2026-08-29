@@ -13,7 +13,7 @@ import RegisterView from '../views/auth/RegisterView.vue'
 // Admin Views
 import AdminDashboardView from '../views/admin/AdminDashboardView.vue'
 
-const routes = [
+export const routes = [
     // Public Routes
     {
         path: '/',
@@ -37,17 +37,32 @@ const routes = [
 
     // Protected Routes
     {
-        path: '/dashboard/:id',
-        name: 'dashboard',
+        path: '/projects',
+        name: 'projects',
+        component: HistoryView,
+        meta: { requiresAuth: true }
+    },
+    {
+        path: '/projects/:id',
+        name: 'project',
         component: DashboardView,
         props: true,
         meta: { requiresAuth: true }
     },
     {
-        path: '/history',
-        name: 'history',
-        component: HistoryView,
+        path: '/projects/:id/editor',
+        name: 'editor',
+        component: () => import('../views/EditorView.vue'),
+        props: true,
         meta: { requiresAuth: true }
+    },
+    {
+        path: '/history',
+        redirect: '/projects'
+    },
+    {
+        path: '/dashboard/:id',
+        redirect: (to) => `/projects/${to.params.id}`
     },
     {
         path: '/profile',

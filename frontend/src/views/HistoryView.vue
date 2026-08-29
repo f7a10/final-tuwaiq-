@@ -1,413 +1,502 @@
 <template>
-  <div class="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100" dir="rtl">
-    
-    <!-- Header -->
-    <header class="bg-white/80 backdrop-blur-md border-b border-gray-200/50 sticky top-0 z-30">
-      <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
-        <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-          
-          <!-- Title & Back -->
-          <div class="flex items-center gap-4">
-            <button 
-              @click="$router.push('/')" 
-              class="w-10 h-10 flex items-center justify-center text-gray-400 hover:text-primary hover:bg-primary/5 rounded-xl transition-all duration-200"
-            >
-              <i class="fas fa-arrow-right text-lg"></i>
-            </button>
-            <div>
-              <h1 class="text-2xl font-bold text-gray-800">سجل المشاريع</h1>
-              <p class="text-sm text-gray-500">جميع المخططات التي قمت بتحليلها</p>
-            </div>
-          </div>
+  <div class="app-page" dir="rtl">
+    <AppHeader />
 
-          <!-- User Info & New Analysis Button -->
-          <div class="flex items-center gap-4">
-            <div v-if="authStore.isAuthenticated" class="hidden sm:flex items-center gap-2 text-sm text-gray-500">
-              <i class="fas fa-user-circle text-primary"></i>
-              <span>{{ authStore.currentUser?.full_name }}</span>
-            </div>
-            <router-link 
-              to="/"
-              class="inline-flex items-center gap-2 px-5 py-2.5 bg-gradient-to-l from-primary to-teal-600 text-white font-bold rounded-xl hover:shadow-lg hover:shadow-primary/25 hover:-translate-y-0.5 transition-all duration-300"
-            >
-              <i class="fas fa-plus"></i>
-              <span>تحليل جديد</span>
-            </router-link>
-          </div>
-
+    <main class="page-container projects-page">
+      <header class="projects-heading">
+        <div>
+          <span class="eyebrow"><i class="fas fa-folder-open" aria-hidden="true"></i> مساحة العمل</span>
+          <h1 class="page-heading">مشاريعي</h1>
+          <p class="page-lead">المخططات التي رفعتها، وحالة كل تحليل، وآخر نسخة يمكنك مراجعتها أو تعديلها.</p>
         </div>
-      </div>
-    </header>
+        <RouterLink to="/" class="button button--primary">
+          <i class="fas fa-plus" aria-hidden="true"></i> مخطط جديد
+        </RouterLink>
+      </header>
 
-    <!-- Main Content -->
-    <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-      
-      <!-- Search & Filters Bar -->
-      <div class="bg-white/80 backdrop-blur-md rounded-2xl shadow-sm border border-gray-100 p-4 mb-8">
-        <div class="flex flex-col md:flex-row gap-4">
-          
-          <!-- Search Input -->
-          <div class="flex-1 relative group">
-            <i class="fas fa-search absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 transition-colors group-focus-within:text-primary"></i>
-            <input 
-              v-model="searchQuery"
-              type="text"
-              placeholder="ابحث في المشاريع..."
-              class="w-full pr-12 pl-4 py-3 bg-gray-50/50 border border-gray-200 rounded-xl focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 focus:bg-white transition-all duration-200"
-            >
-          </div>
+      <section class="surface projects-tools" aria-label="البحث والتصفية">
+        <label class="search-field">
+          <span class="sr-only">ابحث باسم المخطط</span>
+          <i class="fas fa-magnifying-glass" aria-hidden="true"></i>
+          <input v-model.trim="searchQuery" type="search" placeholder="ابحث باسم المخطط…">
+        </label>
 
-          <!-- Filter Chips -->
-          <div class="flex items-center gap-2 flex-wrap">
-            <button 
-              v-for="filter in filters" 
-              :key="filter.value"
-              @click="activeFilter = filter.value"
-              :class="[
-                'px-4 py-2.5 rounded-xl text-sm font-bold transition-all duration-200',
-                activeFilter === filter.value 
-                  ? 'bg-gradient-to-l from-primary to-teal-600 text-white shadow-md shadow-primary/20' 
-                  : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-              ]"
-            >
-              {{ filter.label }}
-              <span v-if="filter.count !== undefined" class="mr-1 opacity-75">({{ filter.count }})</span>
-            </button>
-          </div>
-
+        <div class="filter-tabs" role="group" aria-label="تصفية حالة المشاريع">
+          <button
+            v-for="filter in filters"
+            :key="filter.value"
+            type="button"
+            :aria-pressed="activeFilter === filter.value"
+            @click="activeFilter = filter.value"
+          >
+            {{ filter.label }}
+          </button>
         </div>
+      </section>
+
+      <div v-if="errorMessage" class="notice notice--danger projects-notice" role="alert">
+        <i class="fas fa-circle-exclamation" aria-hidden="true"></i>
+        <span>{{ errorMessage }}</span>
+        <button class="button button--secondary button--small" type="button" @click="fetchProjects">إعادة المحاولة</button>
       </div>
 
-      <!-- Stats Summary -->
-      <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
-        <div class="bg-white/80 backdrop-blur-md rounded-xl p-4 border border-gray-100 shadow-sm hover:shadow-md transition-shadow group">
-          <div class="flex items-center gap-3">
-            <div class="w-10 h-10 bg-primary/10 rounded-lg flex items-center justify-center text-primary group-hover:scale-110 transition-transform">
-              <i class="fas fa-layer-group"></i>
-            </div>
-            <div>
-              <div class="text-2xl font-bold text-gray-800">{{ totalProjects }}</div>
-              <div class="text-sm text-gray-500">إجمالي المشاريع</div>
-            </div>
-          </div>
+      <section v-if="loading" class="projects-list" aria-label="جاري تحميل المشاريع" aria-busy="true">
+        <div v-for="item in 4" :key="item" class="surface project-row project-row--loading">
+          <span class="skeleton skeleton--image"></span>
+          <span class="skeleton skeleton--text"></span>
+          <span class="skeleton skeleton--meta"></span>
         </div>
-        <div class="bg-white/80 backdrop-blur-md rounded-xl p-4 border border-gray-100 shadow-sm hover:shadow-md transition-shadow group">
-          <div class="flex items-center gap-3">
-            <div class="w-10 h-10 bg-green-100 rounded-lg flex items-center justify-center text-green-600 group-hover:scale-110 transition-transform">
-              <i class="fas fa-check-circle"></i>
-            </div>
-            <div>
-              <div class="text-2xl font-bold text-green-600">{{ compliantCount }}</div>
-              <div class="text-sm text-gray-500">مطابقة للكود</div>
-            </div>
-          </div>
-        </div>
-        <div class="bg-white/80 backdrop-blur-md rounded-xl p-4 border border-gray-100 shadow-sm hover:shadow-md transition-shadow group">
-          <div class="flex items-center gap-3">
-            <div class="w-10 h-10 bg-red-100 rounded-lg flex items-center justify-center text-red-600 group-hover:scale-110 transition-transform">
-              <i class="fas fa-exclamation-triangle"></i>
-            </div>
-            <div>
-              <div class="text-2xl font-bold text-red-600">{{ violationsCount }}</div>
-              <div class="text-sm text-gray-500">بها مخالفات</div>
-            </div>
-          </div>
-        </div>
-        <div class="bg-white/80 backdrop-blur-md rounded-xl p-4 border border-gray-100 shadow-sm hover:shadow-md transition-shadow group">
-          <div class="flex items-center gap-3">
-            <div class="w-10 h-10 bg-yellow-100 rounded-lg flex items-center justify-center text-yellow-600 group-hover:scale-110 transition-transform">
-              <i class="fas fa-clock"></i>
-            </div>
-            <div>
-              <div class="text-2xl font-bold text-yellow-600">{{ processingCount }}</div>
-              <div class="text-sm text-gray-500">قيد المعالجة</div>
-            </div>
-          </div>
-        </div>
-      </div>
+      </section>
 
-      <!-- Loading State: Skeleton -->
-      <div v-if="loading" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        <div v-for="i in 6" :key="i" class="bg-white rounded-2xl overflow-hidden border border-gray-100 shadow-sm animate-pulse">
-          <div class="aspect-video bg-gray-200"></div>
-          <div class="p-4 space-y-3">
-            <div class="h-5 bg-gray-200 rounded w-3/4"></div>
-            <div class="h-4 bg-gray-200 rounded w-1/2"></div>
-            <div class="flex justify-between">
-              <div class="h-6 bg-gray-200 rounded-full w-20"></div>
-              <div class="h-6 bg-gray-200 rounded w-16"></div>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <!-- Projects Grid -->
-      <div v-else-if="filteredProjects.length > 0" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        
-        <div 
-          v-for="(project, index) in filteredProjects" 
-          :key="project.id"
-          @click="openProject(project)"
-          class="group bg-white rounded-2xl overflow-hidden border border-gray-100 shadow-sm cursor-pointer transition-all duration-300 hover:-translate-y-2 hover:shadow-xl animate-fade-in-up"
-          :style="{ animationDelay: `${index * 50}ms` }"
-        >
-          <!-- Thumbnail -->
-          <div class="aspect-video bg-gradient-to-br from-gray-100 to-gray-50 relative overflow-hidden">
-            <img 
-              :src="project.analyzed_image_url || project.original_image_url || placeholderImage"
-              :alt="project.title"
-              class="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110"
-              @error="handleImageError"
+      <section v-else-if="projects.length" class="projects-list" aria-label="قائمة المشاريع">
+        <article v-for="project in projects" :key="project.id" class="surface project-row">
+          <button class="project-preview" type="button" :aria-label="`فتح ${project.title}`" @click="openProject(project)">
+            <img
+              v-if="project.analyzed_image_url || project.original_image_url"
+              :src="project.analyzed_image_url || project.original_image_url"
+              :alt="`معاينة ${project.title}`"
+              @error="hideBrokenImage"
             >
-            
-            <!-- Overlay on Hover -->
-            <div class="absolute inset-0 bg-gradient-to-t from-black/50 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex items-end justify-center pb-4">
-              <span class="text-white text-sm font-bold px-4 py-2 bg-primary rounded-full">
-                <i class="fas fa-eye ml-2"></i>
-                عرض التفاصيل
-              </span>
-            </div>
-            
-            <!-- Status Badge Overlay -->
-            <div class="absolute top-3 left-3">
-              <span 
-                v-if="project.status === 'processing'"
-                class="px-3 py-1.5 bg-yellow-500/90 backdrop-blur-sm text-white text-xs font-bold rounded-full flex items-center gap-1.5 shadow-lg"
-              >
-                <i class="fas fa-spinner animate-spin"></i>
-                جاري التحليل
-              </span>
-              <span 
-                v-else-if="project.compliance_status === 'compliant'"
-                class="px-3 py-1.5 bg-green-500/90 backdrop-blur-sm text-white text-xs font-bold rounded-full shadow-lg"
-              >
-                <i class="fas fa-check ml-1"></i>
-                مطابق
-              </span>
-              <span 
-                v-else
-                class="px-3 py-1.5 bg-red-500/90 backdrop-blur-sm text-white text-xs font-bold rounded-full shadow-lg"
-              >
-                <i class="fas fa-exclamation-triangle ml-1"></i>
-                مخالفات
-              </span>
-            </div>
+            <i class="fas fa-compass-drafting" aria-hidden="true"></i>
+          </button>
 
-            <!-- Score Badge -->
-            <div 
-              v-if="project.compliance_score !== null && project.status === 'completed'" 
-              class="absolute bottom-3 right-3 w-14 h-14 rounded-full flex items-center justify-center text-white font-bold text-lg shadow-xl border-2 border-white transition-transform group-hover:scale-110"
-              :class="project.compliance_score >= 80 ? 'bg-gradient-to-br from-green-500 to-green-600' : project.compliance_score >= 50 ? 'bg-gradient-to-br from-yellow-500 to-yellow-600' : 'bg-gradient-to-br from-red-500 to-red-600'"
-            >
-              {{ Math.round(project.compliance_score) }}%
-            </div>
-          </div>
-
-          <!-- Content -->
-          <div class="p-4">
-            <h3 class="font-bold text-gray-800 text-lg mb-1 truncate group-hover:text-primary transition-colors">
-              {{ project.title }}
-            </h3>
-            <p class="text-sm text-gray-500 flex items-center gap-2 mb-3">
-              <i class="fas fa-calendar-alt"></i>
-              {{ formatDate(project.created_at) }}
-            </p>
-
-            <!-- Stats Row -->
-            <div class="flex items-center justify-between text-sm pt-3 border-t border-gray-100">
-              <div class="flex items-center gap-4">
-                <span class="text-gray-500 flex items-center gap-1">
-                  <i class="fas fa-door-open text-primary/60"></i>
-                  {{ project.rooms_count }} غرف
-                </span>
-                <span v-if="project.violations_count > 0" class="text-red-500 flex items-center gap-1">
-                  <i class="fas fa-times-circle"></i>
-                  {{ project.violations_count }} مخالفات
-                </span>
+          <div class="project-main">
+            <div class="project-title-line">
+              <div>
+                <h2>{{ project.title }}</h2>
+                <p>{{ formatDate(project.created_at) }}</p>
               </div>
-              <i class="fas fa-chevron-left text-gray-300 group-hover:text-primary group-hover:translate-x-1 transition-all"></i>
+              <span class="badge" :class="statusMeta(project).className">
+                <i :class="statusMeta(project).icon" aria-hidden="true"></i>
+                {{ statusMeta(project).label }}
+              </span>
             </div>
+
+            <dl class="project-meta">
+              <div>
+                <dt>الغرف</dt>
+                <dd>{{ project.rooms_count ?? '—' }}</dd>
+              </div>
+              <div>
+                <dt>الملاحظات</dt>
+                <dd>{{ project.violations_count ?? '—' }}</dd>
+              </div>
+              <div>
+                <dt>نتيجة الفحص الأولي</dt>
+                <dd>{{ scoreLabel(project.compliance_score) }}</dd>
+              </div>
+            </dl>
           </div>
-        </div>
 
-      </div>
+          <div class="project-actions">
+            <RouterLink :to="`/projects/${project.id}`" class="button button--secondary">
+              {{ project.status === 'processing' ? 'متابعة التحليل' : 'فتح المشروع' }}
+              <i class="fas fa-arrow-left" aria-hidden="true"></i>
+            </RouterLink>
+          </div>
+        </article>
+      </section>
 
-      <!-- Empty State -->
-      <div v-else class="text-center py-20 animate-fade-in">
-        <div class="inline-flex items-center justify-center w-32 h-32 bg-gradient-to-br from-gray-100 to-gray-50 rounded-full mb-6 shadow-inner">
-          <svg class="w-16 h-16 text-gray-300" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"/>
-          </svg>
-        </div>
-        <h3 class="text-xl font-bold text-gray-700 mb-2">لا توجد مشاريع حتى الآن</h3>
-        <p class="text-gray-500 mb-8 max-w-md mx-auto">ابدأ بتحليل أول مخطط معماري لك وسيظهر هنا في سجلك الشخصي</p>
-        <router-link 
-          to="/"
-          class="inline-flex items-center gap-2 px-8 py-4 bg-gradient-to-l from-primary to-teal-600 text-white font-bold rounded-xl hover:shadow-xl hover:shadow-primary/25 hover:-translate-y-1 transition-all duration-300"
-        >
-          <i class="fas fa-upload"></i>
-          <span>رفع مخطط جديد</span>
-        </router-link>
-      </div>
-
+      <section v-else class="surface empty-projects">
+        <span class="empty-projects__icon"><i class="fas fa-folder-plus" aria-hidden="true"></i></span>
+        <h2>لا توجد مشاريع بعد</h2>
+        <p>{{ searchQuery || activeFilter !== 'all' ? 'لا توجد نتائج مطابقة للبحث أو الفلتر الحالي.' : 'ارفع مخطط دور واحد ليظهر التحليل ومراحل التعديل هنا.' }}</p>
+        <button v-if="searchQuery || activeFilter !== 'all'" class="button button--secondary" type="button" @click="clearFilters">مسح البحث والفلتر</button>
+        <RouterLink v-else to="/" class="button button--primary">رفع أول مخطط</RouterLink>
+      </section>
     </main>
   </div>
 </template>
 
 <script setup>
-import { ref, computed, onMounted, watch } from 'vue';
-import { useRouter } from 'vue-router';
-import { useAuthStore } from '../stores/auth';
+import { onBeforeUnmount, onMounted, ref, watch } from 'vue'
+import { useRouter } from 'vue-router'
 
-const router = useRouter();
-const authStore = useAuthStore();
+import AppHeader from '../components/AppHeader.vue'
+import { api } from '../services/api'
 
-// State
-const projects = ref([]);
-const loading = ref(true);
-const searchQuery = ref('');
-const activeFilter = ref('all');
+const router = useRouter()
+const projects = ref([])
+const loading = ref(true)
+const errorMessage = ref('')
+const searchQuery = ref('')
+const activeFilter = ref('all')
 
-const placeholderImage = 'https://via.placeholder.com/400x300?text=Floor+Plan';
+const filters = [
+  { value: 'all', label: 'الكل' },
+  { value: 'compliant', label: 'دون ملاحظات ظاهرة' },
+  { value: 'non_compliant', label: 'تحتاج مراجعة' },
+]
 
-// Filters config
-const filters = computed(() => [
-  { value: 'all', label: 'الكل', count: totalProjects.value },
-  { value: 'compliant', label: 'مطابق', count: compliantCount.value },
-  { value: 'non_compliant', label: 'غير مطابق', count: violationsCount.value }
-]);
+let searchTimer = null
 
-// Computed stats
-const totalProjects = computed(() => projects.value.length);
-
-const compliantCount = computed(() => 
-  projects.value.filter(p => p.compliance_status === 'compliant').length
-);
-
-const violationsCount = computed(() => 
-  projects.value.filter(p => p.compliance_status === 'non_compliant').length
-);
-
-const processingCount = computed(() => 
-  projects.value.filter(p => p.status === 'processing').length
-);
-
-// Filtered projects
-const filteredProjects = computed(() => {
-  let result = [...projects.value];
-  
-  // Apply search
-  if (searchQuery.value) {
-    const query = searchQuery.value.toLowerCase();
-    result = result.filter(p => 
-      p.title.toLowerCase().includes(query)
-    );
-  }
-  
-  // Apply filter
-  if (activeFilter.value === 'compliant') {
-    result = result.filter(p => p.compliance_status === 'compliant');
-  } else if (activeFilter.value === 'non_compliant') {
-    result = result.filter(p => p.compliance_status === 'non_compliant');
-  }
-  
-  return result;
-});
-
-// Methods
-const fetchProjects = async () => {
-  loading.value = true;
-  
+async function fetchProjects() {
+  loading.value = true
+  errorMessage.value = ''
   try {
-    const response = await fetch('/api/projects/me', {
-      headers: authStore.getAuthHeader()
-    });
-    
-    if (!response.ok) {
-      if (response.status === 401) {
-        authStore.logout();
-        router.push('/login');
-        return;
-      }
-      throw new Error('Failed to fetch projects');
-    }
-    
-    const data = await response.json();
-    projects.value = data.projects || [];
-    
+    const data = await api.projects.list({
+      search: searchQuery.value,
+      status: activeFilter.value === 'all' ? '' : activeFilter.value,
+    })
+    projects.value = data.projects || []
   } catch (error) {
-    console.error('Error fetching projects:', error);
+    projects.value = []
+    errorMessage.value = error.message || 'تعذر تحميل المشاريع. حاول مرة أخرى.'
+    if (error.status === 401) router.push('/login')
   } finally {
-    loading.value = false;
+    loading.value = false
   }
-};
+}
 
-const formatDate = (dateString) => {
-  if (!dateString) return '---';
-  const date = new Date(dateString);
-  return date.toLocaleDateString('ar-SA', {
+function statusMeta(project) {
+  if (project.status === 'processing') {
+    return { label: 'قيد التحليل', className: 'badge--warning', icon: 'fas fa-circle-notch fa-spin' }
+  }
+  if (project.status === 'failed') {
+    return { label: 'تعذر التحليل', className: 'badge--danger', icon: 'fas fa-circle-xmark' }
+  }
+  if (project.compliance_status === 'compliant') {
+    return { label: 'دون ملاحظات ظاهرة', className: 'badge--success', icon: 'fas fa-circle-check' }
+  }
+  return { label: 'تحتاج مراجعة', className: 'badge--warning', icon: 'fas fa-triangle-exclamation' }
+}
+
+function formatDate(value) {
+  if (!value) return 'تاريخ غير متاح'
+  return new Intl.DateTimeFormat('ar-SA', {
     year: 'numeric',
-    month: 'long',
-    day: 'numeric'
-  });
-};
+    month: 'short',
+    day: 'numeric',
+  }).format(new Date(value))
+}
 
-const openProject = (project) => {
-  router.push({ name: 'dashboard', params: { id: project.task_id } });
-};
+function scoreLabel(value) {
+  return Number.isFinite(value) ? `${Math.round(value)}%` : 'لم تكتمل'
+}
 
-const handleImageError = (e) => {
-  e.target.src = placeholderImage;
-};
+function hideBrokenImage(event) {
+  event.target.hidden = true
+}
 
-// Debounced search
-let searchTimeout;
-watch(searchQuery, () => {
-  clearTimeout(searchTimeout);
-  searchTimeout = setTimeout(() => {
-    // Could call API with search param for server-side filtering
-  }, 300);
-});
+function openProject(project) {
+  router.push(`/projects/${project.id}`)
+}
 
-// Lifecycle
-onMounted(() => {
-  // Redirect to login if not authenticated
-  if (!authStore.isAuthenticated) {
-    router.push('/login');
-    return;
-  }
-  fetchProjects();
-});
+function clearFilters() {
+  searchQuery.value = ''
+  activeFilter.value = 'all'
+}
+
+watch([searchQuery, activeFilter], () => {
+  window.clearTimeout(searchTimer)
+  searchTimer = window.setTimeout(fetchProjects, 250)
+})
+
+onMounted(fetchProjects)
+onBeforeUnmount(() => window.clearTimeout(searchTimer))
 </script>
 
 <style scoped>
-@keyframes fade-in-up {
-  from { 
-    opacity: 0; 
-    transform: translateY(20px); 
-  }
-  to { 
-    opacity: 1; 
-    transform: translateY(0); 
-  }
+.projects-page {
+  padding-block: clamp(2rem, 5vw, 4.5rem);
 }
 
-@keyframes fade-in {
-  from { opacity: 0; }
+.projects-heading {
+  display: flex;
+  align-items: end;
+  justify-content: space-between;
+  gap: 1.5rem;
+}
+
+.projects-tools {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-top: 2rem;
+  padding: 0.7rem;
+}
+
+.search-field {
+  position: relative;
+  display: flex;
+  min-width: min(100%, 20rem);
+  align-items: center;
+}
+
+.search-field i {
+  position: absolute;
+  right: 0.85rem;
+  color: var(--emad-muted);
+  font-size: 0.8rem;
+}
+
+.search-field input {
+  width: 100%;
+  min-height: 2.7rem;
+  padding: 0.55rem 2.35rem 0.55rem 0.8rem;
+  border: 1px solid var(--emad-line);
+  border-radius: 0.65rem;
+  background: var(--emad-surface-subtle);
+  color: var(--emad-ink);
+  font: inherit;
+  font-size: 0.82rem;
+  outline: none;
+}
+
+.search-field input:focus {
+  border-color: var(--emad-accent);
+  background: var(--emad-surface);
+  box-shadow: 0 0 0 3px rgba(23, 107, 91, 0.1);
+}
+
+.filter-tabs {
+  display: flex;
+  gap: 0.25rem;
+  overflow-x: auto;
+}
+
+.filter-tabs button {
+  min-height: 2.45rem;
+  padding: 0.5rem 0.75rem;
+  border: 0;
+  border-radius: 0.6rem;
+  background: transparent;
+  color: var(--emad-muted);
+  font: inherit;
+  font-size: 0.75rem;
+  font-weight: 650;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.filter-tabs button:hover,
+.filter-tabs button[aria-pressed='true'] {
+  background: var(--emad-accent-soft);
+  color: var(--emad-accent-dark);
+}
+
+.projects-notice {
+  align-items: center;
+  margin-top: 1rem;
+}
+
+.projects-notice .button {
+  margin-right: auto;
+}
+
+.projects-list {
+  display: grid;
+  gap: 0.7rem;
+  margin-top: 1rem;
+}
+
+.project-row {
+  display: grid;
+  grid-template-columns: 8.5rem minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 1rem;
+  padding: 0.8rem;
+  transition: border-color 150ms ease, box-shadow 150ms ease;
+}
+
+.project-row:hover {
+  border-color: rgba(23, 107, 91, 0.25);
+  box-shadow: var(--emad-shadow-md);
+}
+
+.project-preview {
+  position: relative;
+  display: grid;
+  width: 8.5rem;
+  height: 6rem;
+  place-items: center;
+  overflow: hidden;
+  border: 0;
+  border-radius: 0.65rem;
+  background-color: #eceeea;
+  background-image: linear-gradient(rgba(31, 39, 34, 0.04) 1px, transparent 1px), linear-gradient(90deg, rgba(31, 39, 34, 0.04) 1px, transparent 1px);
+  background-size: 12px 12px;
+  color: var(--emad-muted);
+  cursor: pointer;
+}
+
+.project-preview img {
+  position: absolute;
+  z-index: 1;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.project-main {
+  min-width: 0;
+}
+
+.project-title-line {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.project-title-line h2,
+.project-title-line p {
+  margin: 0;
+}
+
+.project-title-line h2 {
+  overflow: hidden;
+  color: var(--emad-ink);
+  font-size: 0.95rem;
+  font-weight: 720;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.project-title-line p {
+  margin-top: 0.2rem;
+  color: var(--emad-muted);
+  font-size: 0.7rem;
+}
+
+.project-meta {
+  display: flex;
+  gap: 1.3rem;
+  margin: 0.8rem 0 0;
+}
+
+.project-meta div {
+  display: flex;
+  align-items: baseline;
+  gap: 0.35rem;
+}
+
+.project-meta dt,
+.project-meta dd {
+  margin: 0;
+  font-size: 0.7rem;
+}
+
+.project-meta dt {
+  color: var(--emad-muted);
+}
+
+.project-meta dd {
+  color: var(--emad-ink-soft);
+  font-weight: 700;
+}
+
+.project-actions {
+  align-self: center;
+}
+
+.project-row--loading {
+  min-height: 7.6rem;
+}
+
+.skeleton {
+  display: block;
+  border-radius: 0.55rem;
+  background: #e8ebe7;
+  animation: pulse 1.4s ease-in-out infinite alternate;
+}
+
+.skeleton--image {
+  width: 8.5rem;
+  height: 6rem;
+}
+
+.skeleton--text {
+  width: 50%;
+  height: 1.2rem;
+}
+
+.skeleton--meta {
+  width: 7rem;
+  height: 2.7rem;
+}
+
+.empty-projects {
+  display: grid;
+  min-height: 25rem;
+  place-items: center;
+  align-content: center;
+  gap: 0.7rem;
+  margin-top: 1rem;
+  padding: 2rem;
+  text-align: center;
+}
+
+.empty-projects__icon {
+  display: grid;
+  width: 3.8rem;
+  height: 3.8rem;
+  place-items: center;
+  border-radius: 1rem;
+  background: var(--emad-accent-soft);
+  color: var(--emad-accent-dark);
+  font-size: 1.3rem;
+}
+
+.empty-projects h2,
+.empty-projects p {
+  margin: 0;
+}
+
+.empty-projects h2 {
+  font-size: 1.05rem;
+}
+
+.empty-projects p {
+  max-width: 27rem;
+  color: var(--emad-muted);
+  font-size: 0.82rem;
+}
+
+@keyframes pulse {
+  from { opacity: 0.55; }
   to { opacity: 1; }
 }
 
-.animate-fade-in-up {
-  animation: fade-in-up 0.5s ease-out forwards;
-  opacity: 0;
-}
+@media (max-width: 760px) {
+  .projects-heading,
+  .projects-tools {
+    align-items: stretch;
+    flex-direction: column;
+  }
 
-.animate-fade-in {
-  animation: fade-in 0.5s ease-out forwards;
-}
+  .project-row {
+    grid-template-columns: 5.5rem minmax(0, 1fr);
+  }
 
-/* Smooth card animations */
-.group {
-  will-change: transform, box-shadow;
+  .project-preview {
+    width: 5.5rem;
+    height: 5.5rem;
+  }
+
+  .project-actions {
+    grid-column: 1 / -1;
+  }
+
+  .project-actions .button {
+    width: 100%;
+  }
+
+  .project-title-line {
+    flex-direction: column;
+    gap: 0.5rem;
+  }
+
+  .project-meta {
+    flex-wrap: wrap;
+    gap: 0.5rem 1rem;
+  }
+
+  .skeleton--image {
+    width: 5.5rem;
+    height: 5.5rem;
+  }
 }
 </style>

@@ -5,7 +5,7 @@
 
 import { defineStore } from 'pinia';
 import { ref, computed } from 'vue';
-import { useRouter } from 'vue-router';
+import { api } from '../services/api';
 
 export const useAuthStore = defineStore('auth', () => {
     // State
@@ -39,26 +39,14 @@ export const useAuthStore = defineStore('auth', () => {
         error.value = null;
 
         try {
-            const response = await fetch('/api/me', {
-                headers: {
-                    'Authorization': `Bearer ${token.value}`
-                }
-            });
-
-            if (!response.ok) {
-                if (response.status === 401) {
-                    // Token expired or invalid
-                    logout();
-                    return null;
-                }
-                throw new Error('Failed to fetch user');
-            }
-
-            const userData = await response.json();
+            const userData = await api.auth.me();
             updateUser(userData);
             return userData;
 
         } catch (err) {
+            if (err.status === 401) {
+                logout();
+            }
             error.value = err.message;
             return null;
         } finally {

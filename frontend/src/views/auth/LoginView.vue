@@ -1,268 +1,328 @@
 <template>
-  <div class="min-h-screen flex" dir="rtl">
-    
-    <!-- Right Side: Login Form -->
-    <div class="w-full lg:w-1/2 flex items-center justify-center p-8 bg-gradient-to-br from-gray-50 to-gray-100">
-      <div class="w-full max-w-md">
-        
-        <!-- Logo & Title -->
-        <div class="text-center mb-10 animate-fade-in">
-          <div class="inline-flex items-center justify-center w-20 h-20 bg-gradient-to-br from-primary to-teal-600 rounded-2xl mb-4 shadow-xl shadow-primary/20 transform hover:scale-105 transition-transform duration-300">
-            <span class="text-4xl font-bold text-white">ع</span>
-          </div>
-          <h1 class="text-3xl font-bold text-primary">مرحباً بك في عماد</h1>
-          <p class="text-gray-500 mt-2">سجّل دخولك للمتابعة</p>
-        </div>
+  <div class="auth-page" dir="rtl">
+    <header class="auth-topbar">
+      <RouterLink to="/" class="auth-brand" aria-label="عماد — الصفحة الرئيسية">
+        <BrandMark />
+        <span>عماد</span>
+      </RouterLink>
+      <RouterLink to="/" class="button button--ghost button--small">
+        <i class="fas fa-arrow-right" aria-hidden="true"></i> العودة
+      </RouterLink>
+    </header>
 
-        <!-- Login Form Card -->
-        <div class="bg-white/70 backdrop-blur-xl rounded-3xl shadow-xl border border-white/50 p-8 animate-slide-up">
-          <form @submit.prevent="handleLogin" class="space-y-6">
-            
-            <!-- Email Field -->
-            <div class="group">
-              <label class="block text-sm font-bold text-gray-700 mb-2">البريد الإلكتروني</label>
-              <div class="relative">
-                <span class="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 transition-colors group-focus-within:text-primary">
-                  <i class="fas fa-envelope"></i>
-                </span>
-                <input 
-                  v-model="form.email"
-                  type="email" 
-                  required
-                  placeholder="example@email.com"
-                  class="w-full pr-12 pl-4 py-4 bg-gray-50/50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-accent/50 focus:border-primary focus:bg-white transition-all duration-300 outline-none"
-                >
-              </div>
+    <main class="auth-main">
+      <section class="surface auth-shell" aria-labelledby="login-title">
+        <div class="auth-form-side">
+          <span class="eyebrow"><i class="fas fa-user" aria-hidden="true"></i> الحساب</span>
+          <h1 id="login-title">تسجيل الدخول</h1>
+          <p class="auth-lead">ادخل إلى مشاريعك وتابع آخر تحليل أو تعديل من حيث توقفت.</p>
+
+          <form @submit.prevent="handleLogin">
+            <div class="field">
+              <label for="login-email" class="field__label">البريد الإلكتروني</label>
+              <input
+                id="login-email"
+                v-model.trim="form.email"
+                class="input"
+                type="email"
+                autocomplete="email"
+                required
+                placeholder="name@example.com"
+              >
             </div>
 
-            <!-- Password Field -->
-            <div class="group">
-              <label class="block text-sm font-bold text-gray-700 mb-2">كلمة المرور</label>
-              <div class="relative">
-                <span class="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 transition-colors group-focus-within:text-primary">
-                  <i class="fas fa-lock"></i>
-                </span>
-                <input 
+            <div class="field">
+              <label for="login-password" class="field__label">كلمة المرور</label>
+              <div class="password-field">
+                <input
+                  id="login-password"
                   v-model="form.password"
-                  :type="showPassword ? 'text' : 'password'" 
+                  class="input"
+                  :type="showPassword ? 'text' : 'password'"
+                  autocomplete="current-password"
                   required
                   placeholder="••••••••"
-                  class="w-full pr-12 pl-14 py-4 bg-gray-50/50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-accent/50 focus:border-primary focus:bg-white transition-all duration-300 outline-none"
                 >
-                <button 
+                <button
                   type="button"
+                  :aria-label="showPassword ? 'إخفاء كلمة المرور' : 'إظهار كلمة المرور'"
                   @click="showPassword = !showPassword"
-                  class="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 hover:text-primary transition-colors"
                 >
-                  <i :class="showPassword ? 'fas fa-eye-slash' : 'fas fa-eye'"></i>
+                  <i :class="showPassword ? 'fas fa-eye-slash' : 'fas fa-eye'" aria-hidden="true"></i>
                 </button>
               </div>
             </div>
 
-            <!-- Remember Me & Forgot Password -->
-            <div class="flex items-center justify-between">
-              <label class="flex items-center gap-2 cursor-pointer group/check">
-                <div class="relative">
-                  <input 
-                    v-model="form.rememberMe"
-                    type="checkbox" 
-                    class="peer h-5 w-5 cursor-pointer appearance-none rounded-md border-2 border-gray-300 transition-all checked:border-primary checked:bg-primary hover:border-primary/50"
-                  >
-                  <i class="fas fa-check text-white absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 text-[10px] opacity-0 peer-checked:opacity-100 pointer-events-none"></i>
-                </div>
-                <span class="text-sm text-gray-600 group-hover/check:text-gray-800 transition-colors">تذكرني</span>
-              </label>
-              <a href="#" class="text-sm text-primary hover:underline font-medium hover:text-primary/80 transition-colors">نسيت كلمة المرور؟</a>
+            <div v-if="error" class="notice notice--danger" role="alert">
+              <i class="fas fa-circle-exclamation" aria-hidden="true"></i>
+              <span>{{ error }}</span>
             </div>
 
-            <!-- Error Message -->
-            <transition
-              enter-active-class="transition ease-out duration-300"
-              enter-from-class="opacity-0 -translate-y-2"
-              enter-to-class="opacity-100 translate-y-0"
-              leave-active-class="transition ease-in duration-200"
-              leave-from-class="opacity-100 translate-y-0"
-              leave-to-class="opacity-0 -translate-y-2"
-            >
-              <div v-if="error" class="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-xl text-sm flex items-center gap-2">
-                <i class="fas fa-exclamation-circle"></i>
-                {{ error }}
-              </div>
-            </transition>
-
-            <!-- Success Message -->
-            <transition
-              enter-active-class="transition ease-out duration-300"
-              enter-from-class="opacity-0 scale-95"
-              enter-to-class="opacity-100 scale-100"
-            >
-              <div v-if="success" class="bg-green-50 border border-green-200 text-green-700 px-4 py-3 rounded-xl text-sm flex items-center gap-2">
-                <i class="fas fa-check-circle"></i>
-                {{ success }}
-              </div>
-            </transition>
-
-            <!-- Submit Button -->
-            <button 
-              type="submit"
-              :disabled="loading"
-              class="w-full py-4 bg-gradient-to-l from-primary to-teal-600 text-white font-bold rounded-xl hover:shadow-xl hover:shadow-primary/25 hover:-translate-y-0.5 transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:translate-y-0 disabled:hover:shadow-none flex items-center justify-center gap-2"
-            >
-              <span v-if="loading" class="animate-spin"><i class="fas fa-spinner"></i></span>
-              <template v-else>
-                <i class="fas fa-sign-in-alt"></i>
-                <span>تسجيل الدخول</span>
-              </template>
+            <button class="button button--primary auth-submit" type="submit" :disabled="loading">
+              <i :class="loading ? 'fas fa-circle-notch fa-spin' : 'fas fa-arrow-left-to-bracket'" aria-hidden="true"></i>
+              {{ loading ? 'جاري التحقق…' : 'تسجيل الدخول' }}
             </button>
-
           </form>
+
+          <p class="auth-switch">
+            ليس لديك حساب؟
+            <RouterLink :to="registerLink">إنشاء حساب جديد</RouterLink>
+          </p>
         </div>
 
-        <!-- Register Link -->
-        <p class="text-center mt-8 text-gray-600 animate-fade-in" style="animation-delay: 0.3s">
-          ليس لديك حساب؟
-          <router-link to="/register" class="text-primary font-bold hover:underline">سجّل الآن</router-link>
-        </p>
-
-      </div>
-    </div>
-
-    <!-- Left Side: Branding -->
-    <div class="hidden lg:flex w-1/2 bg-gradient-to-br from-primary via-primary to-teal-700 relative overflow-hidden">
-      <!-- Decorative Elements -->
-      <div class="absolute inset-0">
-        <div class="absolute top-20 right-20 w-80 h-80 bg-white/10 rounded-full blur-3xl animate-pulse-slow"></div>
-        <div class="absolute bottom-20 left-20 w-96 h-96 bg-accent/20 rounded-full blur-3xl animate-pulse-slow" style="animation-delay: 1s"></div>
-        <div class="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] border border-white/5 rounded-full"></div>
-        <div class="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[500px] h-[500px] border border-white/5 rounded-full"></div>
-        <div class="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[400px] h-[400px] border border-white/10 rounded-full"></div>
-      </div>
-      
-      <!-- Content -->
-      <div class="relative z-10 flex flex-col items-center justify-center w-full p-12 text-white text-center">
-        <div class="w-28 h-28 bg-white/20 backdrop-blur-md rounded-3xl flex items-center justify-center mb-8 shadow-2xl border border-white/20 animate-float">
-          <span class="text-6xl font-bold">ع</span>
-        </div>
-        <h2 class="text-5xl font-bold mb-4">عماد</h2>
-        <p class="text-xl opacity-90 mb-12 max-w-md">مدقق المخططات المعمارية بالذكاء الاصطناعي وفق كود البناء السعودي</p>
-        
-
-        
-        <!-- Testimonial -->
-
-      </div>
-    </div>
-
+        <aside class="auth-context" aria-label="ما الذي يمكنك متابعته بعد الدخول">
+          <div>
+            <span class="auth-context__mark"><i class="fas fa-compass-drafting" aria-hidden="true"></i></span>
+            <h2>مشروعك يبقى في مكان واحد</h2>
+            <p>الملف الأصلي، التحليل، المعاينات، والنسخ التي اعتمدتها تُجمع تحت المشروع نفسه.</p>
+          </div>
+          <ul>
+            <li><i class="fas fa-circle-check" aria-hidden="true"></i> متابعة حالة التحليل الحقيقية</li>
+            <li><i class="fas fa-circle-check" aria-hidden="true"></i> مراجعة الملاحظات والدليل المتاح</li>
+            <li><i class="fas fa-circle-check" aria-hidden="true"></i> العودة إلى Preview أو Revision محفوظة</li>
+          </ul>
+          <p class="auth-context__note"><i class="fas fa-lock" aria-hidden="true"></i> لا تشارك كلمة المرور أو مفاتيح API داخل المحادثات.</p>
+        </aside>
+      </section>
+    </main>
   </div>
 </template>
 
 <script setup>
-import { ref, reactive } from 'vue';
-import { useRouter } from 'vue-router';
-import { useAuthStore } from '../../stores/auth';
+import { computed, reactive, ref } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
 
-const router = useRouter();
-const authStore = useAuthStore();
+import BrandMark from '../../components/BrandMark.vue'
+import { api } from '../../services/api'
+import { useAuthStore } from '../../stores/auth'
 
-const form = reactive({
-  email: '',
-  password: '',
-  rememberMe: false
-});
+const route = useRoute()
+const router = useRouter()
+const authStore = useAuthStore()
 
-const showPassword = ref(false);
-const loading = ref(false);
-const error = ref('');
-const success = ref('');
+const form = reactive({ email: '', password: '' })
+const showPassword = ref(false)
+const loading = ref(false)
+const error = ref('')
 
-const handleLogin = async () => {
-  loading.value = true;
-  error.value = '';
-  success.value = '';
+const safeRedirect = computed(() => {
+  const value = route.query.redirect
+  return typeof value === 'string' && value.startsWith('/') && !value.startsWith('//')
+    ? value
+    : ''
+})
+const registerLink = computed(() => ({
+  path: '/register',
+  query: safeRedirect.value ? { redirect: safeRedirect.value } : {},
+}))
+
+async function handleLogin() {
+  if (loading.value) return
+  loading.value = true
+  error.value = ''
 
   try {
-    const response = await fetch('/api/login', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        email: form.email,
-        password: form.password,
-        remember_me: form.rememberMe
-      })
-    });
-
-    const data = await response.json();
-
-    if (!response.ok) {
-      throw new Error(data.detail || 'فشل تسجيل الدخول');
-    }
-
-    // Store token using auth store
-    authStore.setAuth(data.access_token, data.user);
-    
-    success.value = 'تم تسجيل الدخول بنجاح!';
-
-    // Redirect after short delay
-    setTimeout(() => {
-      // Check for redirect query param
-      const redirect = router.currentRoute.value.query.redirect;
-      if (redirect) {
-        router.push(redirect);
-      } else if (data.user.role === 'admin') {
-        router.push('/admin');
-      } else {
-        router.push('/');
-      }
-    }, 500);
-
-  } catch (err) {
-    error.value = err.message || 'حدث خطأ أثناء تسجيل الدخول';
+    const data = await api.auth.login({
+      email: form.email,
+      password: form.password,
+    })
+    authStore.setAuth(data.access_token, data.user)
+    await router.push(
+      safeRedirect.value || (data.user.role === 'admin' ? '/admin' : '/projects'),
+    )
+  } catch (requestError) {
+    error.value = requestError.message || 'تعذر تسجيل الدخول. تحقق من البيانات وحاول مرة أخرى.'
   } finally {
-    loading.value = false;
+    loading.value = false
   }
-};
+}
 </script>
 
 <style scoped>
-/* Animations */
-@keyframes fade-in {
-  from { opacity: 0; }
-  to { opacity: 1; }
+.auth-page {
+  min-height: 100vh;
+  background: var(--emad-bg);
 }
 
-@keyframes slide-up {
-  from { opacity: 0; transform: translateY(20px); }
-  to { opacity: 1; transform: translateY(0); }
+.auth-topbar {
+  display: flex;
+  min-height: 4.5rem;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding-inline: clamp(1rem, 4vw, 3rem);
+  border-bottom: 1px solid var(--emad-line);
+  background: var(--emad-surface);
 }
 
-@keyframes float {
-  0%, 100% { transform: translateY(0px); }
-  50% { transform: translateY(-10px); }
+.auth-brand {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.6rem;
+  color: var(--emad-ink);
+  font-size: 1rem;
+  font-weight: 750;
+  text-decoration: none;
 }
 
-@keyframes pulse-slow {
-  0%, 100% { opacity: 0.3; }
-  50% { opacity: 0.6; }
+.auth-main {
+  display: grid;
+  min-height: calc(100vh - 4.5rem);
+  place-items: center;
+  padding: clamp(1rem, 5vw, 4rem);
 }
 
-.animate-fade-in {
-  animation: fade-in 0.6s ease-out forwards;
+.auth-shell {
+  display: grid;
+  width: min(100%, 56rem);
+  grid-template-columns: minmax(0, 1.1fr) minmax(18rem, 0.9fr);
+  overflow: hidden;
 }
 
-.animate-slide-up {
-  animation: slide-up 0.6s ease-out forwards;
+.auth-form-side,
+.auth-context {
+  padding: clamp(1.4rem, 4vw, 3rem);
 }
 
-.animate-float {
-  animation: float 4s ease-in-out infinite;
+.auth-form-side h1,
+.auth-form-side p,
+.auth-context h2,
+.auth-context p {
+  margin: 0;
 }
 
-.animate-pulse-slow {
-  animation: pulse-slow 4s ease-in-out infinite;
+.auth-form-side h1 {
+  margin-top: 0.8rem;
+  color: var(--emad-ink);
+  font-size: clamp(1.6rem, 4vw, 2.25rem);
+  letter-spacing: -0.035em;
 }
 
-/* Custom focus states with accent color */
-input:focus {
-  --tw-ring-color: #D6D693;
+.auth-lead {
+  margin-top: 0.55rem !important;
+  color: var(--emad-muted);
+  font-size: 0.84rem;
+}
+
+.auth-form-side form {
+  display: grid;
+  gap: 1rem;
+  margin-top: 2rem;
+}
+
+.password-field {
+  position: relative;
+}
+
+.password-field .input {
+  padding-left: 3rem;
+}
+
+.password-field button {
+  position: absolute;
+  top: 50%;
+  left: 0.4rem;
+  display: grid;
+  width: 2.4rem;
+  height: 2.4rem;
+  place-items: center;
+  border: 0;
+  border-radius: 0.55rem;
+  background: transparent;
+  color: var(--emad-muted);
+  cursor: pointer;
+  transform: translateY(-50%);
+}
+
+.password-field button:hover {
+  background: var(--emad-surface-subtle);
+  color: var(--emad-accent-dark);
+}
+
+.auth-submit {
+  width: 100%;
+  min-height: 3.2rem;
+}
+
+.auth-switch {
+  margin-top: 1.35rem !important;
+  color: var(--emad-muted);
+  font-size: 0.78rem;
+  text-align: center;
+}
+
+.auth-switch a {
+  color: var(--emad-accent-dark);
+  font-weight: 720;
+}
+
+.auth-context {
+  display: grid;
+  align-content: space-between;
+  gap: 2rem;
+  border-right: 1px solid var(--emad-line);
+  background-color: #eef1ed;
+  background-image: linear-gradient(rgba(31, 39, 34, 0.035) 1px, transparent 1px), linear-gradient(90deg, rgba(31, 39, 34, 0.035) 1px, transparent 1px);
+  background-size: 22px 22px;
+}
+
+.auth-context__mark {
+  display: grid;
+  width: 3.2rem;
+  height: 3.2rem;
+  place-items: center;
+  border-radius: 0.85rem;
+  background: var(--emad-accent-soft);
+  color: var(--emad-accent-dark);
+  font-size: 1.15rem;
+}
+
+.auth-context h2 {
+  margin-top: 1rem;
+  font-size: 1.08rem;
+}
+
+.auth-context p {
+  margin-top: 0.45rem;
+  color: var(--emad-muted);
+  font-size: 0.76rem;
+}
+
+.auth-context ul {
+  display: grid;
+  gap: 0.7rem;
+  margin: 0;
+  padding: 0;
+  color: var(--emad-ink-soft);
+  font-size: 0.76rem;
+  list-style: none;
+}
+
+.auth-context li {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.auth-context li i,
+.auth-context__note i {
+  color: var(--emad-accent);
+}
+
+.auth-context__note {
+  padding-top: 1rem;
+  border-top: 1px solid var(--emad-line-strong);
+  font-size: 0.68rem !important;
+}
+
+@media (max-width: 720px) {
+  .auth-shell {
+    grid-template-columns: 1fr;
+  }
+
+  .auth-context {
+    border-top: 1px solid var(--emad-line);
+    border-right: 0;
+  }
 }
 </style>

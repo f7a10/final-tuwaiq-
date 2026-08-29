@@ -2,7 +2,7 @@
 # Database Models - SQLAlchemy + SQLite
 # ==========================================
 
-from sqlalchemy import create_engine, Column, Integer, String, DateTime, Boolean, Float, ForeignKey, Text
+from sqlalchemy import create_engine, Column, Integer, String, DateTime, Boolean, Float, ForeignKey, Text, UniqueConstraint
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker, relationship
 from datetime import datetime
@@ -63,6 +63,8 @@ class Project(Base):
     
     # JSON data for detailed results
     rooms_data = Column(Text, nullable=True)  # JSON string
+    analysis_error_code = Column(String(100), nullable=True)
+    analysis_error_message = Column(Text, nullable=True)
     
     # Timestamps
     created_at = Column(DateTime, default=datetime.utcnow)
@@ -73,11 +75,70 @@ class Project(Base):
 
 
 # -------------------------------------------------
+# Persistent Editor State
+# -------------------------------------------------
+class EditorRevision(Base):
+    __tablename__ = "editor_revisions"
+    __table_args__ = (
+        UniqueConstraint("project_id", "revision_number", name="uq_editor_revision_number"),
+        UniqueConstraint("project_id", "revision_hash", name="uq_editor_revision_hash"),
+    )
+
+    id = Column(Integer, primary_key=True)
+    project_id = Column(Integer, ForeignKey("projects.id"), nullable=False, index=True)
+    revision_number = Column(Integer, nullable=False)
+    revision_hash = Column(String(64), nullable=False)
+    parent_revision_id = Column(Integer, ForeignKey("editor_revisions.id"), nullable=True)
+    geometry_json = Column(Text, nullable=False)
+    operation_json = Column(Text, nullable=True)
+    label_ar = Column(String(255), nullable=True)
+    created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+
+
+class EditorSession(Base):
+    __tablename__ = "editor_sessions"
+
+    id = Column(Integer, primary_key=True)
+    project_id = Column(Integer, ForeignKey("projects.id"), nullable=False, unique=True, index=True)
+    current_revision_id = Column(Integer, ForeignKey("editor_revisions.id"), nullable=False)
+    redo_stack_json = Column(Text, nullable=False, default="[]")
+    scale_confidence = Column(Float, nullable=False)
+    geometry_confidence = Column(Float, nullable=False)
+    created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)
+
+
+class EditorPreview(Base):
+    __tablename__ = "editor_previews"
+
+    id = Column(Integer, primary_key=True)
+    project_id = Column(Integer, ForeignKey("projects.id"), nullable=False, index=True)
+    base_revision_id = Column(Integer, ForeignKey("editor_revisions.id"), nullable=False)
+    geometry_json = Column(Text, nullable=False)
+    operation_json = Column(Text, nullable=False)
+    label_ar = Column(String(255), nullable=False)
+    status = Column(String(30), nullable=False, default="pending")
+    created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+
+
+# -------------------------------------------------
 # Database Initialization
 # -------------------------------------------------
 def init_db():
     """Create all tables in the database."""
     Base.metadata.create_all(bind=engine)
+    if engine.dialect.name == "sqlite":
+        from sqlalchemy import inspect, text
+
+        columns = {column["name"] for column in inspect(engine).get_columns("projects")}
+        additions = {
+            "analysis_error_code": "VARCHAR(100)",
+            "analysis_error_message": "TEXT",
+        }
+        with engine.begin() as connection:
+            for name, sql_type in additions.items():
+                if name not in columns:
+                    connection.execute(text(f"ALTER TABLE projects ADD COLUMN {name} {sql_type}"))
     print("Database initialized successfully.")
 
 

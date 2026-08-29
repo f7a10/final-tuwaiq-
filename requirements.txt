@@ -3,10 +3,14 @@ uvicorn
 python-multipart
 opencv-python
 numpy
+torch>=2.2,<3
+safetensors>=0.4,<1
 openai
 inference-sdk
 matplotlib
 pillow
+ezdxf
+pymupdf
 python-dotenv
 # RAG Dependencies (for sbc_rag_sys)
 sentence-transformers
@@ -18,6 +22,5 @@ bcrypt
 passlib[bcrypt]
 python-jose[cryptography]
 pydantic[email]
-google-generativeai
 qdrant-client
 mistralai

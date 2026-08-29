@@ -1,641 +1,388 @@
 <template>
-  <div class="h-screen flex flex-col bg-gray-50 overflow-hidden font-sans" dir="rtl">
-    
-    <header class="h-16 bg-white border-b border-gray-200 flex justify-between items-center px-6 shadow-sm z-20">
-      <div class="flex items-center gap-4">
-        <button @click="$router.push('/')" class="text-gray-400 hover:text-primary transition">
-          <i class="fas fa-arrow-right text-lg"></i>
-        </button>
-        <div>
-          <h1 class="font-bold text-lg text-primary">تحليل المخطط #{{ taskId.slice(0,8) }}</h1>
-          <div class="flex items-center gap-2 text-xs">
-            <span class="w-2 h-2 rounded-full bg-green-500"></span>
-            <span class="text-gray-500">فحص كود البناء السعودي (SBC 1101)</span>
-          </div>
+  <div class="app-shell" dir="rtl">
+    <AppHeader />
+
+    <main class="project-page page-container">
+      <div v-if="loading" class="surface state-panel" role="status">
+        <i class="fas fa-circle-notch fa-spin" aria-hidden="true"></i>
+        <h1>جاري تحميل المشروع…</h1>
+        <p>نسترجع المخطط وآخر نتيجة محفوظة.</p>
+      </div>
+
+      <div v-else-if="error" class="surface state-panel state-panel--error" role="alert">
+        <i class="fas fa-circle-exclamation" aria-hidden="true"></i>
+        <h1>تعذر فتح المشروع</h1>
+        <p>{{ error }}</p>
+        <div class="state-panel__actions">
+          <button type="button" class="button button--primary" @click="loadProject">إعادة المحاولة</button>
+          <RouterLink to="/projects" class="button button--secondary">العودة إلى المشاريع</RouterLink>
         </div>
       </div>
-      
-      <div class="flex gap-3">
-        <!-- Generative CAD Button -->
 
-
-        <!-- Edit Plan Button - New Integration -->
-        <button 
-          @click="openEditPlan"
-          class="px-4 py-2 text-sm font-bold text-white bg-gradient-to-r from-purple-500 to-indigo-500 rounded-lg hover:opacity-90 transition flex items-center gap-2 shadow-sm"
-        >
-          <i class="fas fa-pencil-ruler"></i>
-          <span>تعديل المخطط</span>
-        </button>
-
-        <!-- New Download DXF Dropdown -->
-
-
-        <button 
-          @click="downloadImage"
-          class="px-4 py-2 text-sm font-bold text-primary bg-secondary/10 rounded-lg hover:bg-secondary/20 transition flex items-center gap-2"
-        >
-          <i class="fas fa-download"></i>
-          <span>تحميل المخطط (JPG)</span>
-        </button>
-      </div>
-    </header>
-
-    <div class="flex-1 flex overflow-hidden">
-      
-      <!-- Right Sidebar (Compliance & Chat) -->
-      <div class="w-[450px] bg-white border-l border-gray-200 flex flex-col shadow-xl z-10 order-first">
-        
-        <div class="flex border-b border-gray-200">
-          <button 
-            @click="activeTab = 'report'"
-            class="flex-1 py-4 text-sm font-bold border-b-2 transition-colors flex items-center justify-center gap-2"
-            :class="activeTab === 'report' ? 'border-primary text-primary' : 'border-transparent text-gray-400 hover:text-gray-600'"
-          >
-            <i class="fas fa-clipboard-list"></i> تقرير المطابقة
-          </button>
-          <button 
-            @click="activeTab = 'chat'"
-            class="flex-1 py-4 text-sm font-bold border-b-2 transition-colors flex items-center justify-center gap-2"
-            :class="activeTab === 'chat' ? 'border-primary text-primary' : 'border-transparent text-gray-400 hover:text-gray-600'"
-          >
-            <i class="fas fa-robot"></i> المستشار الذكي
-          </button>
-        </div>
-
-        <!-- Compliance Report Tab -->
-        <div v-if="activeTab === 'report'" class="flex-1 overflow-y-auto p-4 space-y-4 bg-gray-50/50">
-          
-          <div class="bg-primary text-white p-5 rounded-2xl shadow-lg mb-4 relative overflow-hidden">
-            <div class="absolute top-0 left-0 w-32 h-32 bg-white/10 rounded-full blur-2xl -translate-x-10 -translate-y-10"></div>
-            <div class="relative z-10">
-                <div class="flex justify-between items-center mb-2">
-                <h3 class="font-bold text-lg">نسبة الامتثال</h3>
-                <span class="text-3xl font-bold text-accent">{{ complianceScore }}%</span>
-                </div>
-                <div class="h-2 bg-black/20 rounded-full overflow-hidden mb-2">
-                <div class="h-full bg-accent transition-all duration-1000 ease-out" :style="{ width: complianceScore + '%' }"></div>
-                </div>
-                <p class="text-xs opacity-90">تم العثور على {{ violationsCount }} مخالفات وفقاً لكود البناء السعودي.</p>
-            </div>
-          </div>
-
-          <div 
-            v-for="room in analysisData.rooms" 
-            :key="room.id"
-            :id="'card-' + room.id"
-            class="bg-white rounded-xl border-r-4 p-4 shadow-sm transition-all duration-200 cursor-pointer hover:shadow-md"
-            :class="[
-              activeRoomId === room.id ? 'ring-2 ring-primary scale-[1.02]' : '',
-              room.isCompliant ? 'border-green-500' : 'border-red-500'
-            ]"
-            @mouseenter="activeRoomId = room.id"
-          >
-            <div class="flex justify-between items-start mb-2">
-              <div>
-                <h4 class="font-bold text-gray-800 text-lg">{{ getArabicRoomType(room.type) }}</h4>
-                <p class="text-xs text-gray-500 font-mono" dir="ltr">ID: {{ room.id }}</p>
-              </div>
-              <span 
-                class="px-2 py-1 rounded-lg text-[10px] font-bold"
-                :class="room.isCompliant ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'"
-              >
-                {{ room.isCompliant ? 'موافق للكود' : 'مخالف' }}
+      <template v-else-if="project">
+        <header class="project-heading">
+          <div>
+            <div class="project-heading__meta">
+              <RouterLink to="/projects" class="back-link"><i class="fas fa-arrow-right" aria-hidden="true"></i> مشاريعي</RouterLink>
+              <span class="status-chip" :class="statusClass">
+                <i :class="statusIcon" aria-hidden="true"></i> {{ statusLabel }}
               </span>
             </div>
-
-            <div class="grid grid-cols-2 gap-3 mb-3 text-xs text-gray-600">
-              <div class="bg-gray-50 p-2 rounded-lg">
-                <span class="block text-gray-400 mb-1">المساحة</span>
-                <span class="font-bold text-gray-800 text-sm" dir="ltr">{{ room.metrics.area }} m²</span>
-              </div>
-              <div class="bg-gray-50 p-2 rounded-lg">
-                <span class="block text-gray-400 mb-1">أقل بعد</span>
-                <span class="font-bold text-gray-800 text-sm" dir="ltr">{{ room.metrics.minDim }} m</span>
-              </div>
-            </div>
-
-            <div v-if="!room.isCompliant" class="bg-red-50 p-3 rounded-xl border border-red-100">
-              <p class="text-xs text-red-800 leading-relaxed font-medium">
-                <i class="fas fa-exclamation-triangle ml-1"></i>
-                <strong>مخالفة:</strong> {{ room.ragReason }}
-              </p>
-              <button @click="askAboutRoom(room)" class="mt-3 text-xs text-primary font-bold hover:underline flex items-center gap-1">
-                 استشر الذكاء الاصطناعي
-                 <i class="fas fa-arrow-left text-[10px]"></i>
-              </button>
-              
-              <!-- Proposed Fix Button -->
-              <button 
-                v-if="room.proposedFix" 
-                @click="toggleFix(room.id)"
-                class="mt-2 w-full py-2 bg-blue-50 text-blue-600 rounded-lg text-xs font-bold hover:bg-blue-100 transition flex items-center justify-center gap-2 border border-blue-200"
-              >
-                <i class="fas fa-magic"></i>
-                {{ showingFixId === room.id ? 'إخفاء التعديل المقترح' : 'عرض التعديل المقترح' }}
-              </button>
-            </div>
+            <h1>{{ project.title || `مشروع #${project.id}` }}</h1>
+            <p>آخر نتيجة محفوظة للمخطط، مع فصل ما تم رصده عن الأمور التي تحتاج تحققًا أو مراجعة مختص.</p>
           </div>
-        </div>
-
-        <!-- Chat Tab -->
-        <div v-else class="flex-1 flex flex-col bg-white">
-          <div class="flex-1 overflow-y-auto p-4 space-y-4" ref="chatContainer">
-            <div v-for="(msg, i) in currentChatHistory" :key="i" class="flex flex-col" :class="msg.role === 'user' ? 'items-start' : 'items-end'">
-              <div 
-                class="max-w-[85%] p-3 rounded-2xl text-sm leading-relaxed shadow-sm"
-                :class="msg.role === 'user' ? 'bg-primary text-white rounded-br-none' : 'bg-gray-100 text-gray-800 rounded-bl-none'"
-              >
-                {{ msg.text }}
-              </div>
-              <span class="text-[10px] text-gray-400 mt-1 mx-1">{{ msg.time }}</span>
-            </div>
-            
-            <div v-if="isTyping" class="flex gap-1 p-2 items-center justify-end opacity-50">
-              <span class="text-xs ml-2">جاري الكتابة</span>
-              <span class="w-1.5 h-1.5 bg-gray-400 rounded-full animate-bounce"></span>
-              <span class="w-1.5 h-1.5 bg-gray-400 rounded-full animate-bounce delay-100"></span>
-              <span class="w-1.5 h-1.5 bg-gray-400 rounded-full animate-bounce delay-200"></span>
-            </div>
-          </div>
-
-          <div class="p-3 border-t bg-gray-50">
-            <div class="flex gap-2">
-              <input 
-                v-model="newMessage" 
-                @keyup.enter="sendMessage"
-                placeholder="اسأل عن الكود أو المخطط..." 
-                class="flex-1 p-2.5 rounded-xl border border-gray-300 text-sm focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary transition"
-              >
-              <button @click="sendMessage" class="p-3 bg-accent text-primary rounded-xl hover:bg-[#caca8b] transition shadow-sm">
-                <i class="fas fa-paper-plane flip-horizontal"></i>
-              </button>
-            </div>
-          </div>
-        </div>
-
-      </div>
-
-      <!-- Main Canvas (Center - Left) -->
-      <div class="flex-1 bg-gray-100 relative overflow-hidden flex items-center justify-center p-8">
-        
-        <div v-if="loading" class="text-center">
-          <div class="animate-spin text-5xl text-primary mb-6">⚙️</div>
-          <p class="text-gray-500 font-bold">جاري تحميل البيانات...</p>
-        </div>
-
-        <div v-else class="relative shadow-2xl rounded-lg bg-white inline-block transition-transform duration-200" :style="{ transform: `scale(${zoomLevel})` }">
-          <img 
-            :src="imageUrl" 
-            ref="planImage"
-            @load="onImageLoad"
-            @error="onImageError"
-            class="max-w-full max-h-[85vh] block select-none"
-          >
-          
-          <div 
-            v-for="room in analysisData.rooms" 
-            :key="room.id"
-            class="absolute border-2 transition-all duration-300 cursor-pointer flex items-center justify-center group"
-            :class="[
-              activeRoomId === room.id ? 'bg-accent/40 border-accent z-10 scale-105 shadow-xl' : '',
-              room.isCompliant ? 'border-green-500 bg-green-500/5 hover:bg-green-500/20' : 'border-red-500 bg-red-500/5 hover:bg-red-500/20'
-            ]"
-            :style="getBoxStyle(room.box)"
-            @mouseenter="activeRoomId = room.id"
-            @mouseleave="activeRoomId = null"
-            @click="scrollToCard(room.id)"
-          >
-            <span 
-              class="absolute -top-6 px-2 py-0.5 text-[10px] font-bold text-white rounded bg-gray-800 shadow-md opacity-0 group-hover:opacity-100 transition whitespace-nowrap z-20 pointer-events-none"
+          <div class="project-heading__actions">
+            <button type="button" class="button button--secondary" @click="loadProject">
+              <i class="fas fa-rotate" aria-hidden="true"></i> تحديث الحالة
+            </button>
+            <RouterLink v-if="!isProcessing && !isFailed" :to="`/projects/${project.id}/editor`" class="button button--primary">
+              <i class="fas fa-pen-ruler" aria-hidden="true"></i> فتح المحرر
+            </RouterLink>
+            <button
+              v-if="!isProcessing && !isFailed"
+              data-testid="download-report"
+              type="button"
+              class="button button--secondary"
+              :disabled="reportDownloading"
+              @click="downloadReport"
             >
-              {{ getArabicRoomType(room.type) }}
-            </span>
-          </div>
-
-          <!-- Proposed Fix Overlay -->
-          <template v-for="room in analysisData.rooms" :key="'fix-' + room.id">
-            <div 
-              v-if="showingFixId === room.id && room.proposedFix"
-              class="absolute border-4 border-dashed border-blue-500 bg-blue-500/10 z-20 transition-all duration-300 pointer-events-none flex items-center justify-center animate-pulse"
-              :style="getBoxStyle(room.proposedFix.box)"
-            >
-               <span class="bg-blue-600 text-white text-xs font-bold px-2 py-1 rounded shadow-lg">
-                 ✨ {{ room.proposedFix.description }}
-               </span>
-            </div>
-          </template>
-        </div>
-
-        <!-- Zoom Controls -->
-        <div class="absolute bottom-8 right-8 bg-white/90 backdrop-blur rounded-xl shadow-lg flex flex-col overflow-hidden border border-gray-200">
-          <button @click="zoomLevel += 0.1" class="p-3 hover:bg-gray-50 text-gray-600 border-b transition"><i class="fas fa-plus"></i></button>
-          <button @click="zoomLevel = 1" class="p-3 hover:bg-gray-50 text-gray-600 border-b text-xs font-bold font-mono">100%</button>
-          <button @click="zoomLevel = Math.max(0.5, zoomLevel - 0.1)" class="p-3 hover:bg-gray-50 text-gray-600 transition"><i class="fas fa-minus"></i></button>
-        </div>
-      </div>
-
-    </div>
-    <!-- Generative CAD Modal -->
-    <div v-if="showGeneratorModal" class="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4 backdrop-blur-sm">
-      <div class="bg-white rounded-2xl shadow-2xl w-full max-w-2xl overflow-hidden animate-fade-in" dir="rtl">
-        <header class="bg-primary text-white p-4 flex justify-between items-center">
-          <h3 class="font-bold text-lg flex items-center gap-2">
-            <i class="fas fa-magic"></i>
-            مولد المخططات الآلي (Generative CAD)
-          </h3>
-          <button @click="showGeneratorModal = false" class="text-white/70 hover:text-white transition">
-            <i class="fas fa-times text-xl"></i>
-          </button>
-        </header>
-        
-        <div class="p-6 max-h-[70vh] overflow-y-auto">
-          <p class="text-gray-600 mb-4 text-sm">قم بإضافة الغرف المطلوبة ومقاساتها، وسيقوم النظام بإنشاء ملف CAD متكامل لك تلقائياً.</p>
-          
-          <div class="space-y-3 mb-6">
-            <div v-for="(room, idx) in generatorRooms" :key="idx" class="flex gap-2 items-end bg-gray-50 p-3 rounded-xl border border-gray-200">
-              <div class="flex-1">
-                <label class="block text-xs text-gray-500 mb-1">نوع الغرفة</label>
-                <select v-model="room.type" class="w-full p-2 rounded-lg border border-gray-300 text-sm">
-                  <option value="Bedroom">غرفة نوم</option>
-                  <option value="Living Room">غرفة معيشة</option>
-                  <option value="Kitchen">مطبخ</option>
-                  <option value="Bathroom">دورة مياه</option>
-                  <option value="Majlis">مجلس</option>
-                  <option value="Dining Room">غرفة طعام</option>
-                </select>
-              </div>
-              <div class="w-24">
-                <label class="block text-xs text-gray-500 mb-1">العرض (م)</label>
-                <input type="number" v-model="room.width" class="w-full p-2 rounded-lg border border-gray-300 text-sm text-center" step="0.5">
-              </div>
-              <div class="w-24">
-                <label class="block text-xs text-gray-500 mb-1">الطول (م)</label>
-                <input type="number" v-model="room.length" class="w-full p-2 rounded-lg border border-gray-300 text-sm text-center" step="0.5">
-              </div>
-              <button @click="removeGenRoom(idx)" class="p-2 text-red-500 hover:bg-red-50 rounded-lg transition" title="حذف الغرفة">
-                <i class="fas fa-trash"></i>
-              </button>
-            </div>
-            
-            <button @click="addGenRoom" class="w-full py-3 border-2 border-dashed border-gray-300 rounded-xl text-gray-500 hover:border-primary hover:text-primary transition flex items-center justify-center gap-2">
-              <i class="fas fa-plus"></i>
-              إضافة غرفة أخرى
+              <i :class="reportDownloading ? 'fas fa-circle-notch fa-spin' : 'fas fa-file-arrow-down'" aria-hidden="true"></i>
+              {{ reportDownloading ? 'جاري إعداد التقرير…' : 'تنزيل التقرير' }}
             </button>
           </div>
-        </div>
-        
-        <footer class="bg-gray-50 p-4 border-t flex justify-end gap-3">
-          <button @click="showGeneratorModal = false" class="px-5 py-2 text-gray-600 font-bold hover:bg-gray-200 rounded-lg transition">إلغاء</button>
-          <button 
-            @click="generateDxfLayout" 
-            :disabled="isGenerating"
-            class="px-6 py-2 bg-accent text-primary font-bold rounded-lg shadow-lg hover:shadow-xl hover:bg-yellow-400 transition flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
-          >
-            <span v-if="isGenerating" class="animate-spin">⚙️</span>
-            <span>{{ isGenerating ? 'جاري التوليد...' : 'إنشاء المخطط (DXF)' }}</span>
-          </button>
-        </footer>
-      </div>
-    </div>
+        </header>
 
+        <div v-if="reportMessage" class="notice" :class="reportError ? 'notice--danger' : 'notice--success'" role="status">
+          <i :class="reportError ? 'fas fa-circle-exclamation' : 'fas fa-circle-check'" aria-hidden="true"></i>
+          <span>{{ reportMessage }}</span>
+        </div>
+
+        <section v-if="isProcessing" class="surface processing-panel" aria-live="polite">
+          <span class="processing-panel__icon"><i class="fas fa-magnifying-glass-chart" aria-hidden="true"></i></span>
+          <div>
+            <h2>التحليل ما زال قيد المعالجة</h2>
+            <p>لم نُصدر نتيجة بعد. استخدم «تحديث الحالة» لقراءة آخر حالة من الخادم.</p>
+          </div>
+        </section>
+
+        <section v-else-if="isFailed" class="surface failure-panel" role="alert">
+          <i class="fas fa-triangle-exclamation" aria-hidden="true"></i>
+          <div>
+            <h2>لم يكتمل التحليل</h2>
+            <p>{{ project.analysis_error_message || 'تعذر إكمال معالجة الملف. لم تُصدر نتيجة أو درجة امتثال لهذا المخطط.' }}</p>
+          </div>
+        </section>
+
+        <template v-else>
+          <section class="summary-strip" aria-label="ملخص النتيجة">
+            <article class="surface summary-primary">
+              <span class="summary-primary__label">حالة المراجعة الأولية</span>
+              <strong>{{ reviewSummary }}</strong>
+              <p>{{ reviewSummaryNote }}</p>
+            </article>
+            <dl class="surface summary-facts">
+              <div>
+                <dt>العناصر المرصودة</dt>
+                <dd>{{ rooms.length }}</dd>
+              </div>
+              <div>
+                <dt>مشاكل محتملة</dt>
+                <dd>{{ potentialIssues.length }}</dd>
+              </div>
+              <div>
+                <dt>النتيجة الأولية</dt>
+                <dd>{{ scoreLabel }}</dd>
+              </div>
+            </dl>
+          </section>
+
+          <div class="notice notice--warning evidence-note">
+            <i class="fas fa-scale-balanced" aria-hidden="true"></i>
+            <span>هذه قراءة آلية أولية وليست اعتمادًا هندسيًا. القياسات دون مقياس مؤكد والمراجع دون رقم صفحة موثق تُعامل كعناصر تحتاج مراجعة مختص.</span>
+          </div>
+
+          <section class="project-workspace">
+            <article class="surface plan-panel" aria-labelledby="plan-title">
+              <header class="panel-heading">
+                <div>
+                  <span class="eyebrow">المخطط</span>
+                  <h2 id="plan-title">الدليل البصري</h2>
+                </div>
+                <a v-if="project.task_id" :href="`/api/download/${project.task_id}`" class="button button--ghost button--small">
+                  <i class="fas fa-download" aria-hidden="true"></i> تنزيل الملف
+                </a>
+              </header>
+
+              <div v-if="planImageUrl" class="plan-canvas">
+                <img :src="planImageUrl" :alt="`مخطط ${project.title || project.id}`">
+                <button
+                  v-for="room in roomsWithBoxes"
+                  :key="room.id"
+                  type="button"
+                  class="room-overlay"
+                  :class="{
+                    'room-overlay--issue': room.isCompliant === false,
+                    'room-overlay--selected': selectedRoomId === room.id,
+                  }"
+                  :style="boxStyle(room.box)"
+                  :aria-label="`عرض ${roomLabel(room.type)}`"
+                  @click="selectedRoomId = room.id"
+                >
+                  <span>{{ roomLabel(room.type) }}</span>
+                </button>
+              </div>
+              <div v-else class="plan-empty">
+                <i class="fas fa-file-image" aria-hidden="true"></i>
+                <p>لا توجد صورة قابلة للعرض لهذا المشروع.</p>
+              </div>
+            </article>
+
+            <aside class="surface findings-panel" aria-labelledby="findings-title">
+              <header class="panel-heading">
+                <div>
+                  <span class="eyebrow">المراجعة</span>
+                  <h2 id="findings-title">الملاحظات المحتملة</h2>
+                </div>
+                <span class="count-badge">{{ potentialIssues.length }}</span>
+              </header>
+
+              <div v-if="potentialIssues.length" class="findings-list">
+                <button
+                  v-for="room in potentialIssues"
+                  :key="room.id"
+                  type="button"
+                  class="finding-card"
+                  :class="{ 'finding-card--selected': selectedRoomId === room.id }"
+                  @click="selectedRoomId = room.id"
+                >
+                  <span class="finding-card__status"><i class="fas fa-triangle-exclamation" aria-hidden="true"></i> مشكلة محتملة</span>
+                  <strong>{{ roomLabel(room.type) }}</strong>
+                  <p>{{ room.ragReason || 'أظهرت القراءة الآلية قيمة تحتاج تحققًا قبل إصدار حكم.' }}</p>
+                  <dl>
+                    <div><dt>المساحة المرصودة</dt><dd>{{ metricLabel(room.metrics?.area, 'م²') }}</dd></div>
+                    <div><dt>أقل بُعد</dt><dd>{{ metricLabel(room.metrics?.minDim, 'م') }}</dd></div>
+                  </dl>
+                  <small><i class="fas fa-book-open" aria-hidden="true"></i> {{ referenceLabel(room.reference) }}</small>
+                </button>
+              </div>
+
+              <div v-else class="findings-empty">
+                <i class="fas fa-circle-check" aria-hidden="true"></i>
+                <h3>لم تظهر مشكلة محتملة في العناصر المقروءة</h3>
+                <p>هذا لا يثبت المطابقة الكاملة؛ قد توجد عناصر لم تُقرأ أو قواعد تحتاج قياسًا ومراجعة مختص.</p>
+              </div>
+
+              <RouterLink :to="`/projects/${project.id}/editor`" class="button button--primary findings-action">
+                {{ potentialIssues.length ? 'مراجعة الحلول في المحرر' : 'فتح المخطط في المحرر' }}
+                <i class="fas fa-arrow-left" aria-hidden="true"></i>
+              </RouterLink>
+            </aside>
+          </section>
+        </template>
+      </template>
+    </main>
   </div>
 </template>
 
 <script setup>
-import { ref, computed, onMounted, nextTick, watch } from 'vue';
-import { useRoute } from 'vue-router';
-import { useAnalysisStore } from '../stores/analysis';
+import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
+import { useRoute } from 'vue-router'
 
-const route = useRoute();
-const store = useAnalysisStore();
-const taskId = ref(route.params.id);
-const activeTab = ref('report');
-const activeRoomId = ref(null);
-const zoomLevel = ref(1);
-const planImage = ref(null);
-const imgNaturalWidth = ref(1000);
-const imgNaturalHeight = ref(1000);
-const chatContainer = ref(null);
-const newMessage = ref('');
-const isTyping = ref(false);
-const imageLoadError = ref(false);
-const showingFixId = ref(null);
+import AppHeader from '../components/AppHeader.vue'
+import { api } from '../services/api'
+import { downloadProjectReport } from '../utils/projectReport'
+import { roomLabelAr } from '../utils/roomLabels'
 
-const showGeneratorModal = ref(false);
-const isGenerating = ref(false);
-const generatorRooms = ref([
-    { type: 'Majlis', width: 5, length: 7 },
-    { type: 'Dining Room', width: 4, length: 5 },
-    { type: 'Kitchen', width: 4, length: 4 }
-]);
+const route = useRoute()
+const project = ref(null)
+const loading = ref(true)
+const error = ref('')
+const selectedRoomId = ref(null)
+const reportDownloading = ref(false)
+const reportMessage = ref('')
+const reportError = ref(false)
+let pollTimer = null
 
-// Arabic Translations
-const roomTypeMap = {
-    'Bedroom': 'غرفة نوم',
-    'Kitchen': 'مطبخ',
-    'Living Room': 'غرفة معيشة',
-    'Bathroom': 'دورة مياه',
-    'Dining Room': 'غرفة طعام',
-    'Majlis': 'مجلس'
-};
+const rooms = computed(() => Array.isArray(project.value?.rooms_data) ? project.value.rooms_data : [])
+const potentialIssues = computed(() => rooms.value.filter((room) => room.isCompliant === false))
+const roomsWithBoxes = computed(() => rooms.value.filter((room) => {
+  const box = room.box
+  return box && ['x', 'y', 'w', 'h'].every((key) => Number.isFinite(Number(box[key])))
+}))
+const normalizedStatus = computed(() => String(project.value?.status || '').toLowerCase())
+const isProcessing = computed(() => ['processing', 'processing_started', 'pending'].includes(normalizedStatus.value))
+const isFailed = computed(() => ['failed', 'error'].includes(normalizedStatus.value))
+const planImageUrl = computed(() => project.value?.analyzed_image_url || project.value?.original_image_url || '')
+const statusLabel = computed(() => {
+  if (isProcessing.value) return 'قيد التحليل'
+  if (isFailed.value) return 'تعذر التحليل'
+  if (normalizedStatus.value === 'completed') return 'اكتمل التحليل'
+  return 'حالة غير محددة'
+})
+const statusClass = computed(() => {
+  if (isProcessing.value) return 'status-chip--processing'
+  if (isFailed.value) return 'status-chip--failed'
+  return 'status-chip--completed'
+})
+const statusIcon = computed(() => {
+  if (isProcessing.value) return 'fas fa-circle-notch fa-spin'
+  if (isFailed.value) return 'fas fa-circle-exclamation'
+  return 'fas fa-circle-check'
+})
+const scoreLabel = computed(() => (
+  Number.isFinite(Number(project.value?.compliance_score))
+    ? `${Math.round(Number(project.value.compliance_score))}%`
+    : 'غير متاحة'
+))
+const reviewSummary = computed(() => (
+  potentialIssues.value.length ? 'توجد عناصر تحتاج مراجعة' : 'لا توجد ملاحظة ضمن العناصر المقروءة'
+))
+const reviewSummaryNote = computed(() => (
+  potentialIssues.value.length
+    ? `رُصدت ${potentialIssues.value.length} مشكلة محتملة. افتح كل ملاحظة وراجع دليلها قبل اتخاذ قرار.`
+    : 'النتيجة محدودة بالعناصر التي استطاع النظام قراءتها والتحقق منها.'
+))
 
-const getArabicRoomType = (type) => roomTypeMap[type] || type;
-
-// Data from Store
-const analysisData = computed(() => {
-  return store.getAnalysisById(taskId.value) || { imageUrl: '', rooms: [] };
-});
-
-const currentChatHistory = computed(() => {
-    const history = store.getChatHistory(taskId.value);
-    if (history.length === 0) {
-       // Initialize welcome message if empty
-       store.addChatMessage(taskId.value, { 
-           role: 'ai', 
-           text: 'مرحباً! أنا "عماد"، مساعدك المعماري. قمت بتحليل المخطط واكتشفت بعض الملاحظات. يمكنك الضغط على الغرف المحددة بالأحمر لمعرفة التفاصيل.', 
-           time: new Date().toLocaleTimeString('ar-SA', {hour: '2-digit', minute:'2-digit'}) 
-       });
-       return store.getChatHistory(taskId.value);
-    }
-    return history;
-});
-
-const imageUrl = computed(() => {
-    // 1. Prefer URL from Store (set by HomeView or fetch)
-    if (analysisData.value && analysisData.value.imageUrl) {
-        return analysisData.value.imageUrl;
-    }
-    
-    // 2. Fallback: If we have an ID but no URL in store, we might be reloading.
-    // Ideally we fetch from API. For now, rely on what the backend *should* return.
-    // Since we fixed main.py to return full URL, we should rely on Store.
-    // If Store is empty, onMounted deals with mock data.
-    
-    return 'https://via.placeholder.com/800x600?text=Loading+Plan...'; 
-});
-
-const loading = computed(() => !analysisData.value || !analysisData.value.rooms || analysisData.value.rooms.length === 0);
-
-// Computed Stats
-const complianceScore = computed(() => {
-  if (!analysisData.value.rooms) return 0;
-  if (!analysisData.value.rooms.length) return 0;
-  const compliant = analysisData.value.rooms.filter(r => r.isCompliant).length;
-  return Math.round((compliant / analysisData.value.rooms.length) * 100);
-});
-
-const violationsCount = computed(() => {
-  if (!analysisData.value.rooms) return 0;
-  return analysisData.value.rooms.filter(r => !r.isCompliant).length;
-});
-
-// --- Methods ---
-
-onMounted(async () => {
-    // Scroll chat to bottom
-    if (chatContainer.value) {
-        chatContainer.value.scrollTop = chatContainer.value.scrollHeight;
-    }
-
-    // If analysis is not in store, try to fetch from API
-    if (!analysisData.value.rooms || analysisData.value.rooms.length === 0) {
-        try {
-            const res = await fetch(`/api/analysis/${taskId.value}`);
-            if (res.ok) {
-                const data = await res.json();
-                if (data.status === 'completed' && data.result) {
-                    store.setAnalysis({ id: taskId.value, ...data.result });
-                } else if (data.rooms && data.rooms.length > 0) {
-                    store.setAnalysis({ id: taskId.value, ...data });
-                }
-            }
-        } catch (e) {
-            console.error("Failed to fetch analysis:", e);
-        }
-    }
-
-    // Polling logic for processing status
-    if (analysisData.value && (analysisData.value.status === 'Processing' || analysisData.value.status === 'processing_started' || analysisData.value.status === 'processing')) {
-        pollInterval = setInterval(async () => {
-            if (!taskId.value) return; 
-            try {
-                const res = await fetch(`/api/analysis/${taskId.value}`);
-                if (res.ok) {
-                    const data = await res.json();
-                    if (data.status === 'completed' || data.result) {
-                        const finalData = data.result || data;
-                        store.updateAnalysis(taskId.value, finalData);
-                        if (finalData.status !== 'processing') {
-                             clearInterval(pollInterval);
-                        }
-                    }
-                }
-            } catch (e) {
-                console.error("Polling error", e);
-            }
-        }, 3000);
-    }
-});
-
-const onImageLoad = (e) => {
-  imgNaturalWidth.value = e.target.naturalWidth;
-  imgNaturalHeight.value = e.target.naturalHeight;
-};
-
-const onImageError = () => {
-    // Fallback if png fails, maybe try jpg? Or show placeholder
-    imageLoadError.value = true;
-};
-
-
-// Convert relative coordinates (0.1) to percentages (10%) for responsiveness
-const getBoxStyle = (box) => {
-  return {
-    left: `${box.x * 100}%`,
-    top: `${box.y * 100}%`,
-    width: `${box.w * 100}%`,
-    height: `${box.h * 100}%`
-  };
-};
-
-const scrollToCard = (id) => {
-  activeTab.value = 'report'; 
-  nextTick(() => {
-    const el = document.getElementById(`card-${id}`);
-    if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center' });
-  });
-};
-
-const toggleFix = (id) => {
-    if (showingFixId.value === id) {
-        showingFixId.value = null;
-    } else {
-        showingFixId.value = id;
-        activeRoomId.value = id; // Also highlight the original room
-    }
-};
-
-// Chat Functions
-const askAboutRoom = (room) => {
-  activeTab.value = 'chat';
-  newMessage.value = `لماذا تعتبر ${getArabicRoomType(room.type)} (ID: ${room.id}) مخالفة؟`;
-  sendMessage();
-};
-
-const sendMessage = async () => {
-  if (!newMessage.value.trim()) return;
-  
-  // Add user message to store
-  store.addChatMessage(taskId.value, { 
-      role: 'user', 
-      text: newMessage.value, 
-      time: new Date().toLocaleTimeString('ar-SA', {hour: '2-digit', minute:'2-digit'}) 
-  });
-
-  const textToSend = newMessage.value;
-  newMessage.value = '';
-  
-  // Scroll to bottom
-  nextTick(() => chatContainer.value.scrollTop = chatContainer.value.scrollHeight);
-
-  // Show AI typing indicator
-  isTyping.value = true;
-  
-  try {
-    // Call real AI chat endpoint
-    const response = await fetch('/api/chat', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ 
-        message: textToSend,
-        task_id: taskId.value
-      })
-    });
-    
-    const data = await response.json();
-    isTyping.value = false;
-    
-    store.addChatMessage(taskId.value, { 
-       role: 'ai', 
-       text: data.reply || 'عذراً، لم أتمكن من الرد.', 
-       time: new Date().toLocaleTimeString('ar-SA', {hour: '2-digit', minute:'2-digit'}) 
-    });
-    
-  } catch (error) {
-    console.error('Chat error:', error);
-    isTyping.value = false;
-    store.addChatMessage(taskId.value, { 
-       role: 'ai', 
-       text: 'عذراً، حدث خطأ في الاتصال. يرجى المحاولة مرة أخرى.', 
-       time: new Date().toLocaleTimeString('ar-SA', {hour: '2-digit', minute:'2-digit'}) 
-    });
+function clearPoll() {
+  if (pollTimer !== null) {
+    window.clearTimeout(pollTimer)
+    pollTimer = null
   }
-  
-  nextTick(() => chatContainer.value.scrollTop = chatContainer.value.scrollHeight);
-};
+}
 
-const downloadImage = () => {
-    if (!taskId.value) return;
-    const url = `/api/download/${taskId.value}`;
-    window.open(url, '_blank');
-};
+function schedulePoll() {
+  clearPoll()
+  if (!error.value && isProcessing.value) {
+    pollTimer = window.setTimeout(() => loadProject({ silent: true }), 3000)
+  }
+}
 
-const downloadDxf = (mode) => {
-    if (!taskId.value) return;
-    // Use the new task-based endpoint for robustness
-    const url = `/api/projects/dxf/${taskId.value}?mode=${mode}`;
-    window.open(url, '_blank');
-};
+async function loadProject(options = {}) {
+  clearPoll()
+  if (!options.silent) loading.value = true
+  error.value = ''
+  try {
+    project.value = await api.projects.get(route.params.id)
+  } catch (requestError) {
+    error.value = requestError.message || 'تعذر الاتصال بالخادم.'
+  } finally {
+    loading.value = false
+    schedulePoll()
+  }
+}
 
-// Generative CAD Functions
-const addGenRoom = () => {
-    generatorRooms.value.push({ type: 'Bedroom', width: 4, length: 5 });
-};
+async function downloadReport() {
+  if (!project.value || reportDownloading.value) return
+  reportDownloading.value = true
+  reportMessage.value = ''
+  reportError.value = false
+  try {
+    const report = await api.projects.report(project.value.id)
+    downloadProjectReport(report)
+    reportMessage.value = `تم تنزيل تقرير النسخة المعتمدة ${report.revision.number}.`
+  } catch (requestError) {
+    const detail = requestError?.payload?.detail
+    reportError.value = true
+    reportMessage.value = typeof detail === 'object' && detail?.message
+      ? detail.message
+      : requestError.message || 'تعذر إعداد التقرير.'
+  } finally {
+    reportDownloading.value = false
+  }
+}
 
-const removeGenRoom = (idx) => {
-    generatorRooms.value.splice(idx, 1);
-};
+function roomLabel(type) {
+  return roomLabelAr(type)
+}
 
-const generateDxfLayout = async () => {
-    if (generatorRooms.value.length === 0) return;
-    isGenerating.value = true;
-    
-    try {
-        const response = await fetch('/api/generate-dxf', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ rooms: generatorRooms.value })
-        });
-        
-        if (response.ok) {
-            // Convert response to blob and download
-            const blob = await response.blob();
-            const url = window.URL.createObjectURL(blob);
-            const a = document.createElement('a');
-            a.href = url;
-            a.download = `Emad_Generated_Plan_${new Date().getTime()}.dxf`;
-            document.body.appendChild(a);
-            a.click();
-            window.URL.revokeObjectURL(url);
-            showGeneratorModal.value = false;
-        } else {
-            alert('حدث خطأ أثناء إنشاء المخطط');
-        }
-    } catch (e) {
-        console.error(e);
-        alert('فشل الاتصال بالخادم');
-    } finally {
-        isGenerating.value = false;
-    }
-};
+function metricLabel(value, unit) {
+  return Number.isFinite(Number(value)) ? `${Number(value)} ${unit}` : 'غير قابل للتحقق'
+}
 
-// Open Edit Plan (Generator) with current rooms data
-const openEditPlan = () => {
-    // Store the image URL for the generator to display as background
-    if (analysisData.value && analysisData.value.imageUrl) {
-        localStorage.setItem('emad_edit_image', analysisData.value.imageUrl);
-    }
-    
-    // Transform analysisData rooms to generator format and save to localStorage
-    if (analysisData.value && analysisData.value.rooms && analysisData.value.rooms.length > 0) {
-        const roomsForEdit = analysisData.value.rooms.map((room, index) => {
-            // Extract dimensions from metrics (backend provides width and height in meters)
-            const width = room.metrics?.width || room.metrics?.minDim || 4;
-            const height = room.metrics?.height || 
-                          (room.metrics?.area && room.metrics?.minDim 
-                            ? Math.round((room.metrics.area / room.metrics.minDim) * 10) / 10 
-                            : 5);
-            
-            // Calculate position from bounding box if available
-            const boxX = room.box ? room.box.x * 800 : 50 + (index % 3) * 180;
-            const boxY = room.box ? room.box.y * 600 : 50 + Math.floor(index / 3) * 250;
-            
-            return {
-                type: room.type || room.normalizedType || 'Bedroom',
-                width: Math.round(width * 10) / 10,  // Round to 1 decimal
-                length: Math.round(height * 10) / 10, // Round to 1 decimal
-                x: Math.round(boxX),
-                y: Math.round(boxY),
-                originalId: room.id,
-                isCompliant: room.isCompliant,
-                violation: room.violation,
-                ragReason: room.ragReason,
-                metrics: room.metrics  // Keep original metrics for reference
-            };
-        });
-        
-        localStorage.setItem('emad_edit_rooms', JSON.stringify(roomsForEdit));
-        console.log('Rooms for edit:', roomsForEdit);
-    }
-    
-    // Navigate to generator page
-    window.location.href = '/generator';
-};
+function referenceLabel(reference) {
+  return reference || 'المصدر غير موثق — يحتاج مراجعة مختص'
+}
+
+function boxStyle(box) {
+  return {
+    left: `${Number(box.x) * 100}%`,
+    top: `${Number(box.y) * 100}%`,
+    width: `${Number(box.w) * 100}%`,
+    height: `${Number(box.h) * 100}%`,
+  }
+}
+
+onMounted(loadProject)
+onBeforeUnmount(clearPoll)
 </script>
 
 <style scoped>
-.flip-horizontal {
-    transform: scaleX(-1);
-}
+.project-page { padding-block: clamp(1.3rem, 3vw, 2.5rem); }
+.project-heading { display: flex; align-items: end; justify-content: space-between; gap: 1.25rem; margin-bottom: 1.25rem; }
+.project-heading h1, .project-heading p, .state-panel h1, .state-panel p, .processing-panel h2, .processing-panel p, .failure-panel h2, .failure-panel p, .summary-primary p, .panel-heading h2, .findings-empty h3, .findings-empty p { margin: 0; }
+.project-heading h1 { margin-top: .55rem; color: var(--emad-ink); font-size: clamp(1.55rem, 4vw, 2.2rem); letter-spacing: -.035em; }
+.project-heading p { max-width: 44rem; margin-top: .35rem; color: var(--emad-muted); font-size: .78rem; }
+.project-heading__meta, .project-heading__actions { display: flex; align-items: center; gap: .65rem; flex-wrap: wrap; }
+.back-link { display: inline-flex; align-items: center; gap: .35rem; color: var(--emad-muted); font-size: .72rem; font-weight: 650; text-decoration: none; }
+.back-link:hover { color: var(--emad-accent-dark); }
+.status-chip { display: inline-flex; align-items: center; gap: .35rem; min-height: 1.8rem; padding-inline: .65rem; border: 1px solid; border-radius: 99px; font-size: .68rem; font-weight: 700; }
+.status-chip--completed { border-color: #badbcf; background: #eef8f4; color: var(--emad-accent-dark); }
+.status-chip--processing { border-color: #bfd4e9; background: #eef6fd; color: #235f96; }
+.status-chip--failed { border-color: #ecc3bf; background: #fff2f1; color: var(--emad-danger); }
+.state-panel { display: grid; min-height: 24rem; place-items: center; align-content: center; gap: .7rem; padding: 2rem; text-align: center; }
+.state-panel > i { color: var(--emad-accent); font-size: 1.8rem; }
+.state-panel h1 { font-size: 1.2rem; }
+.state-panel p { color: var(--emad-muted); font-size: .78rem; }
+.state-panel--error > i { color: var(--emad-danger); }
+.state-panel__actions { display: flex; gap: .6rem; margin-top: .7rem; }
+.processing-panel, .failure-panel { display: flex; align-items: center; gap: 1rem; padding: 1.2rem; }
+.processing-panel__icon { display: grid; width: 3rem; height: 3rem; place-items: center; border-radius: .75rem; background: #eef6fd; color: #235f96; }
+.processing-panel h2, .failure-panel h2 { font-size: .95rem; }
+.processing-panel p, .failure-panel p { margin-top: .25rem; color: var(--emad-muted); font-size: .74rem; }
+.failure-panel { border-color: #ecc3bf; background: #fff9f8; }
+.failure-panel > i { color: var(--emad-danger); font-size: 1.2rem; }
+.summary-strip { display: grid; grid-template-columns: minmax(0, 1.15fr) minmax(25rem, .85fr); gap: 1rem; }
+.summary-primary, .summary-facts { padding: 1.15rem 1.25rem; }
+.summary-primary__label { color: var(--emad-muted); font-size: .68rem; }
+.summary-primary strong { display: block; margin-top: .35rem; color: var(--emad-ink); font-size: 1.05rem; }
+.summary-primary p { margin-top: .25rem; color: var(--emad-muted); font-size: .72rem; }
+.summary-facts { display: grid; grid-template-columns: repeat(3, 1fr); margin: 0; }
+.summary-facts div { padding-inline: 1rem; border-left: 1px solid var(--emad-line); }
+.summary-facts div:last-child { border-left: 0; }
+.summary-facts dt { color: var(--emad-muted); font-size: .66rem; }
+.summary-facts dd { margin: .3rem 0 0; color: var(--emad-ink); font-size: 1rem; font-weight: 760; }
+.evidence-note { margin-top: 1rem; }
+.project-workspace { display: grid; grid-template-columns: minmax(0, 1.45fr) minmax(19rem, .55fr); gap: 1rem; align-items: start; margin-top: 1rem; }
+.plan-panel, .findings-panel { overflow: hidden; }
+.panel-heading { display: flex; align-items: center; justify-content: space-between; gap: 1rem; padding: 1rem 1.1rem; border-bottom: 1px solid var(--emad-line); }
+.panel-heading h2 { margin-top: .25rem; font-size: .92rem; }
+.count-badge { display: grid; min-width: 2rem; height: 2rem; place-items: center; border-radius: 99px; background: var(--emad-warning-soft); color: #7a571b; font-size: .72rem; font-weight: 760; }
+.plan-canvas { position: relative; display: grid; min-height: 30rem; place-items: center; overflow: auto; padding: 1.25rem; background-color: #eef1ed; background-image: linear-gradient(rgba(31,39,34,.035) 1px, transparent 1px), linear-gradient(90deg, rgba(31,39,34,.035) 1px, transparent 1px); background-size: 22px 22px; }
+.plan-canvas img { display: block; max-width: 100%; max-height: 68vh; object-fit: contain; box-shadow: 0 8px 24px rgba(27, 38, 31, .12); }
+.room-overlay { position: absolute; border: 2px solid var(--emad-accent); background: rgba(23,107,91,.08); color: transparent; cursor: pointer; }
+.room-overlay span { position: absolute; top: -1.7rem; right: 0; padding: .2rem .4rem; border-radius: .3rem; background: var(--emad-ink); color: white; font-size: .6rem; opacity: 0; white-space: nowrap; }
+.room-overlay:hover span, .room-overlay:focus-visible span, .room-overlay--selected span { opacity: 1; }
+.room-overlay--issue { border-color: #c48216; background: rgba(196,130,22,.11); }
+.room-overlay--selected { outline: 3px solid rgba(44,116,181,.35); outline-offset: 2px; }
+.plan-empty { display: grid; min-height: 28rem; place-items: center; align-content: center; gap: .6rem; color: var(--emad-muted); }
+.plan-empty i { font-size: 1.6rem; }
+.plan-empty p { font-size: .75rem; }
+.findings-list { display: grid; gap: .7rem; max-height: 57vh; overflow-y: auto; padding: .9rem; }
+.finding-card { display: grid; gap: .45rem; width: 100%; min-height: 44px; padding: .85rem; border: 1px solid var(--emad-line); border-radius: .75rem; background: var(--emad-surface); color: inherit; text-align: right; cursor: pointer; }
+.finding-card:hover, .finding-card--selected { border-color: #c48216; background: #fffaf0; }
+.finding-card__status { display: inline-flex; align-items: center; gap: .35rem; color: #825b17; font-size: .64rem; font-weight: 750; }
+.finding-card strong { font-size: .84rem; }
+.finding-card p { margin: 0; color: var(--emad-muted); font-size: .7rem; line-height: 1.65; }
+.finding-card dl { display: grid; grid-template-columns: 1fr 1fr; margin: .15rem 0 0; }
+.finding-card dl div { padding: .55rem; background: var(--emad-surface-subtle); }
+.finding-card dt { color: var(--emad-muted); font-size: .6rem; }
+.finding-card dd { margin: .2rem 0 0; font-size: .7rem; font-weight: 700; }
+.finding-card small { display: flex; gap: .35rem; align-items: start; padding-top: .45rem; border-top: 1px solid var(--emad-line); color: var(--emad-muted); font-size: .6rem; line-height: 1.5; }
+.findings-empty { display: grid; min-height: 18rem; place-items: center; align-content: center; gap: .45rem; padding: 1.25rem; text-align: center; }
+.findings-empty > i { color: var(--emad-accent); font-size: 1.5rem; }
+.findings-empty h3 { font-size: .84rem; }
+.findings-empty p { max-width: 18rem; color: var(--emad-muted); font-size: .68rem; line-height: 1.65; }
+.findings-action { margin: .9rem; }
+@media (max-width: 950px) { .summary-strip, .project-workspace { grid-template-columns: 1fr; } }
+@media (max-width: 680px) { .project-heading { align-items: stretch; flex-direction: column; } .project-heading__actions > * { flex: 1; } .summary-facts { grid-template-columns: 1fr; } .summary-facts div { padding: .7rem 0; border-bottom: 1px solid var(--emad-line); border-left: 0; } .summary-facts div:last-child { border-bottom: 0; } .plan-canvas { min-height: 22rem; } }
 </style>
